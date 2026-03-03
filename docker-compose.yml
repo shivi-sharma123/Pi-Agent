@@ -1,0 +1,154 @@
+version: "3.9"
+
+# ===========================================================================
+# Full SRE Agent Swarm — Phase 1 MVP
+#
+# Includes: Core infra + MVP microservices (Gateway, User, Auth, Order, Payment)
+# Usage: docker compose up -d
+# ===========================================================================
+
+include:
+  - docker-compose.infrastructure.yml
+
+services:
+
+  # -------------------------------------------------------------------------
+  # API Gateway (Nginx) — :8000
+  # -------------------------------------------------------------------------
+  api-gateway:
+    build:
+      context: ./services/api-gateway
+      dockerfile: Dockerfile
+    container_name: api-gateway
+    ports:
+      - "8000:8000"
+    depends_on:
+      user-svc:
+        condition: service_healthy
+      order-svc:
+        condition: service_healthy
+      auth-svc:
+        condition: service_healthy
+      payment-svc:
+        condition: service_healthy
+    networks:
+      - sre-net
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 64M
+
+  # -------------------------------------------------------------------------
+  # User Service (FastAPI) — :8001
+  # -------------------------------------------------------------------------
+  user-svc:
+    build:
+      context: ./services/user-service
+      dockerfile: Dockerfile
+    container_name: user-svc
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      LOG_LEVEL: INFO
+    depends_on:
+      redis:
+        condition: service_healthy
+    ports:
+      - "8001:8001"
+    networks:
+      - sre-net
+    restart: unless-stopped
+    deploy:
+      replicas: 1
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
+
+  # -------------------------------------------------------------------------
+  # Auth Service (Node.js/Express) — :8004
+  # -------------------------------------------------------------------------
+  auth-svc:
+    build:
+      context: ./services/auth-service
+      dockerfile: Dockerfile
+    container_name: auth-svc
+    environment:
+      PORT: "8004"
+      REDIS_URL: redis://redis:6379/1
+      USER_SVC_URL: http://user-svc:8001
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+      JWT_ACCESS_EXPIRY: "15m"
+      JWT_REFRESH_EXPIRY: "7d"
+    depends_on:
+      redis:
+        condition: service_healthy
+      user-svc:
+        condition: service_healthy
+    ports:
+      - "8004:8004"
+    networks:
+      - sre-net
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 128M
+
+  # -------------------------------------------------------------------------
+  # Order Service (Go/Gin) — :8002
+  # -------------------------------------------------------------------------
+  order-svc:
+    build:
+      context: ./services/order-service
+      dockerfile: Dockerfile
+    container_name: order-svc
+    environment:
+      PORT: "8002"
+      DATABASE_URL: postgres://postgres:postgres@postgres-orders:5432/orders?sslmode=disable
+      NATS_URL: nats://nats:4222
+    depends_on:
+      postgres-orders:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+    ports:
+      - "8002:8002"
+    networks:
+      - sre-net
+    restart: unless-stopped
+    deploy:
+      replicas: 1
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 128M
+
+  # -------------------------------------------------------------------------
+  # Payment Service (FastAPI) — :8005
+  # -------------------------------------------------------------------------
+  payment-svc:
+    build:
+      context: ./services/payment-service
+      dockerfile: Dockerfile
+    container_name: payment-svc
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@postgres-payments:5432/payments
+      NATS_URL: nats://nats:4222
+    depends_on:
+      postgres-payments:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+    ports:
+      - "8005:8005"
+    networks:
+      - sre-net
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M

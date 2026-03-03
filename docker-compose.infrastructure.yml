@@ -1,0 +1,167 @@
+version: "3.9"
+
+# ===========================================================================
+# Core Infrastructure for the SRE Agent Swarm
+#
+# Includes: PostgreSQL (x3), Redis, and NATS JetStream.
+# Start with: docker compose -f docker-compose.infrastructure.yml up -d
+# ===========================================================================
+
+services:
+  # -------------------------------------------------------------------------
+  # PostgreSQL — Agent Incident Store
+  # Used by: agents (orchestrator, learning agent for incident persistence)
+  # -------------------------------------------------------------------------
+  postgres-agents:
+    image: postgres:16-alpine
+    container_name: postgres-agents
+    environment:
+      POSTGRES_DB: agents
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - pgdata-agents:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d agents"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+    networks:
+      - sre-net
+
+  # -------------------------------------------------------------------------
+  # PostgreSQL — Orders Store
+  # Used by: order-svc, inventory-worker
+  # -------------------------------------------------------------------------
+  postgres-orders:
+    image: postgres:16-alpine
+    container_name: postgres-orders
+    environment:
+      POSTGRES_DB: orders
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - pgdata-orders:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d orders"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+    networks:
+      - sre-net
+
+  # -------------------------------------------------------------------------
+  # PostgreSQL — Payments Store
+  # Used by: payment-svc
+  # -------------------------------------------------------------------------
+  postgres-payments:
+    image: postgres:16-alpine
+    container_name: postgres-payments
+    environment:
+      POSTGRES_DB: payments
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - pgdata-payments:/var/lib/postgresql/data
+    ports:
+      - "5434:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d payments"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
+    networks:
+      - sre-net
+
+  # -------------------------------------------------------------------------
+  # Redis — Sessions & Token Cache
+  # Used by: user-svc (sessions), auth-svc (JWT blacklist)
+  # -------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    command: >
+      redis-server
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+      --appendonly yes
+    volumes:
+      - redisdata:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
+    networks:
+      - sre-net
+
+  # -------------------------------------------------------------------------
+  # NATS JetStream — Agent Message Bus
+  # Used by: all agents and services for async messaging
+  # JetStream enabled via --js flag; data persisted to /data volume
+  # -------------------------------------------------------------------------
+  nats:
+    image: nats:2.10-alpine
+    container_name: nats
+    command: "--jetstream --store_dir /data --port 4222 --http_port 8222 --name sre-nats"
+    volumes:
+      - natsdata:/data
+    ports:
+      - "4222:4222" # Client connections
+      - "8222:8222" # HTTP monitoring
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O- http://localhost:8222/healthz | grep ok"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
+    networks:
+      - sre-net
+
+# ===========================================================================
+# Volumes
+# ===========================================================================
+volumes:
+  pgdata-agents:
+  pgdata-orders:
+  pgdata-payments:
+  redisdata:
+  natsdata:
+
+# ===========================================================================
+# Networks
+# ===========================================================================
+networks:
+  sre-net:
+    name: sre-net
+    driver: bridge

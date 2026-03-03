@@ -1,0 +1,22 @@
+{
+    "name": "auth-service",
+    "version": "0.1.0",
+    "description": "JWT authentication service for the SRE Agent Swarm demo",
+    "main": "src/index.js",
+    "scripts": {
+        "start": "node src/index.js",
+        "dev": "nodemon src/index.js"
+    },
+    "dependencies": {
+        "express": "^4.18.3",
+        "jsonwebtoken": "^9.0.2",
+        "redis": "^4.6.13",
+        "prom-client": "^15.1.2"
+    },
+    "devDependencies": {
+        "nodemon": "^3.1.0"
+    },
+    "engines": {
+        "node": ">=20"
+    }
+}
