@@ -10,6 +10,7 @@
     "dependencies": {
         "express": "^4.18.3",
         "jsonwebtoken": "^9.0.2",
+        "bcrypt": "^5.1.1",
         "redis": "^4.6.13",
         "prom-client": "^15.1.2"
     },

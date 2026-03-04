@@ -1,0 +1,22 @@
+---
+id: runbook_database_overload
+name: "Database Overload Remediation"
+matches:
+  root_cause_category: "database_overload"
+  confidence_minimum: 60
+
+actions:
+  - id: "restart_pgbouncer"
+    type: "container_restart"
+    description: "Restart connection pooler to drop stuck transactions"
+    params:
+      target: "pgbouncer"
+    risk: "medium"
+    approval_required: true
+
+verification:
+  wait_seconds: 30
+  checks:
+    - type: "health_check"
+      endpoint: "http://api-gateway:8000/health"
+      expected_status: 200

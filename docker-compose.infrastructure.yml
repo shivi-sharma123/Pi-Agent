@@ -3,7 +3,7 @@ version: "3.9"
 # ===========================================================================
 # Core Infrastructure for the SRE Agent Swarm
 #
-# Includes: PostgreSQL (x3), Redis, and NATS JetStream.
+# Includes: PostgreSQL (x4), Redis, NATS JetStream, Elasticsearch
 # Start with: docker compose -f docker-compose.infrastructure.yml up -d
 # ===========================================================================
 
@@ -148,6 +148,64 @@ services:
     networks:
       - sre-net
 
+  # -------------------------------------------------------------------------
+  # PostgreSQL — Inventory Store
+  # Used by: inventory-worker (stock levels, reservations)
+  # -------------------------------------------------------------------------
+  postgres-inventory:
+    image: postgres:16-alpine
+    container_name: postgres-inventory
+    environment:
+      POSTGRES_DB: inventory
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - pgdata-inventory:/var/lib/postgresql/data
+    ports:
+      - "5435:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d inventory"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
+    networks:
+      - sre-net
+
+  # -------------------------------------------------------------------------
+  # Elasticsearch — Product Catalog + Search Index
+  # Used by: product-svc (index), search-svc (query)
+  # Single-node dev mode. Security disabled for local dev.
+  # -------------------------------------------------------------------------
+  elasticsearch:
+    image: elasticsearch:8.12.2
+    container_name: elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      - cluster.name=sre-es
+    volumes:
+      - esdata:/usr/share/elasticsearch/data
+    ports:
+      - "9200:9200"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:9200/_cluster/health | grep -v red"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 1G
+    networks:
+      - sre-net
+
 # ===========================================================================
 # Volumes
 # ===========================================================================
@@ -155,8 +213,10 @@ volumes:
   pgdata-agents:
   pgdata-orders:
   pgdata-payments:
+  pgdata-inventory:
   redisdata:
   natsdata:
+  esdata:
 
 # ===========================================================================
 # Networks

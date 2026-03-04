@@ -1,0 +1,5 @@
+django>=4.2,<5.0
+djangorestframework>=3.15
+django-prometheus>=2.3
+elasticsearch>=8.12,<9.0
+gunicorn>=22.0

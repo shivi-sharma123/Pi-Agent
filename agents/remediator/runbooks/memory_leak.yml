@@ -1,0 +1,22 @@
+---
+id: runbook_memory_leak
+name: "Memory Leak Remediation"
+matches:
+  root_cause_category: "memory_leak"
+  confidence_minimum: 50
+
+actions:
+  - id: "restart_container"
+    type: "container_restart"
+    description: "Restart the leaking container to free accumulated memory"
+    params:
+      target: "{{diagnosis.root_cause.service}}"
+    risk: "low"
+    approval_required: false
+
+verification:
+  wait_seconds: 15
+  checks:
+    - type: "health_check"
+      endpoint: "http://{{diagnosis.root_cause.service}}:8000/health"
+      expected_status: 200

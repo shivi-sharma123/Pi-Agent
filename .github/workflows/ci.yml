@@ -1,0 +1,117 @@
+name: SRE Agent Swarm CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  lint-python:
+    name: Lint Python
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install ruff
+      - name: Run Ruff
+        run: |
+          ruff check shared/ services/user-service/ services/payment-service/ services/product-service/ services/search-service/ services/notification-worker/ services/analytics-worker/
+
+  test-python:
+    name: Test Python Shared Library
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e "shared/[dev]"
+      - name: Run Pytest
+        run: |
+          cd shared && pytest tests/ -v
+
+  lint-go:
+    name: Lint Go
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v4
+        with:
+          version: latest
+          working-directory: services/order-service
+
+      - name: Run golangci-lint on Inventory Worker
+        uses: golangci/golangci-lint-action@v4
+        with:
+          version: latest
+          working-directory: services/inventory-worker
+
+  build-images:
+    name: Build Docker Images
+    runs-on: ubuntu-latest
+    needs: [lint-python, test-python, lint-go]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Build API Gateway
+        uses: docker/build-push-action@v5
+        with:
+          context: ./services/api-gateway
+          push: false
+      - name: Build User Service
+        uses: docker/build-push-action@v5
+        with:
+          context: ./services/user-service
+          push: false
+      - name: Build Order Service
+        uses: docker/build-push-action@v5
+        with:
+          context: ./services/order-service
+          push: false
+      - name: Build Payment Service
+        uses: docker/build-push-action@v5
+        with:
+          context: ./services/payment-service
+          push: false
+      - name: Build Product Service
+        uses: docker/build-push-action@v5
+        with:
+          context: ./services/product-service
+          push: false
+      - name: Build Search Service
+        uses: docker/build-push-action@v5
+        with:
+          context: ./services/search-service
+          push: false
+      - name: Build Notification Worker
+        uses: docker/build-push-action@v5
+        with:
+          context: ./services/notification-worker
+          push: false
+      - name: Build Inventory Worker
+        uses: docker/build-push-action@v5
+        with:
+          context: ./services/inventory-worker
+          push: false
+      - name: Build Analytics Worker
+        uses: docker/build-push-action@v5
+        with:
+          context: ./services/analytics-worker
+          push: false

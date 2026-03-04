@@ -15,13 +15,14 @@ Endpoints:
 from __future__ import annotations
 
 import json
+import os
 import time
 import uuid
 from contextlib import asynccontextmanager
-from typing import Optional
+from typing import Annotated, Optional
 
 import redis.asyncio as aioredis
-from fastapi import FastAPI, HTTPException, Response
+from fastapi import Depends, FastAPI, HTTPException, Response
 from fastapi.middleware.cors import CORSMiddleware
 from prometheus_client import Counter, Histogram, generate_latest, CONTENT_TYPE_LATEST
 from pydantic import BaseModel, EmailStr, Field
@@ -65,16 +66,20 @@ REQUEST_LATENCY = Histogram(
 )
 
 # ---------------------------------------------------------------------------
-# Redis connection (module scope, shared across requests)
+# Redis dependency injection
 # ---------------------------------------------------------------------------
 
 _redis: aioredis.Redis | None = None
 
 
-def get_redis() -> aioredis.Redis:
+async def get_redis() -> aioredis.Redis:
+    """FastAPI dependency — provides the live Redis client or raises 503."""
     if _redis is None:
-        raise RuntimeError("Redis not initialised — did startup run?")
+        raise HTTPException(status_code=503, detail="Redis not initialised")
     return _redis
+
+
+RedisDep = Annotated[aioredis.Redis, Depends(get_redis)]
 
 
 # ---------------------------------------------------------------------------
@@ -85,7 +90,6 @@ def get_redis() -> aioredis.Redis:
 async def lifespan(app: FastAPI):
     """Connect to Redis on startup, disconnect on shutdown."""
     global _redis
-    import os
     redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
     _redis = aioredis.from_url(redis_url, decode_responses=True)
     yield
@@ -157,11 +161,8 @@ async def metrics():
 
 
 @app.post("/users", status_code=201, response_model=UserResponse)
-async def create_user(payload: UserCreate):
-    """Create a new user; store in Redis with a 7-day TTL."""
-    r = get_redis()
-
-    # Check for duplicate email
+async def create_user(payload: UserCreate, r: RedisDep):
+    """Create a new user; store in Redis."""
     email_key = f"user:email:{payload.email}"
     if await r.exists(email_key):
         raise HTTPException(status_code=409, detail="User with this email already exists")
@@ -177,19 +178,18 @@ async def create_user(payload: UserCreate):
         "updated_at": now,
     }
 
-    user_key = f"user:{user_id}"
-    # Store user data
-    await r.set(user_key, json.dumps(user))
-    # Index email → id
-    await r.set(email_key, user_id)
+    # Use a pipeline to write both keys atomically (prevents partial writes)
+    async with r.pipeline(transaction=True) as pipe:
+        pipe.set(f"user:{user_id}", json.dumps(user))
+        pipe.set(email_key, user_id)
+        await pipe.execute()
 
     return UserResponse(**user)
 
 
 @app.get("/users/{user_id}", response_model=UserResponse)
-async def get_user(user_id: str):
+async def get_user(user_id: str, r: RedisDep):
     """Retrieve a user by ID."""
-    r = get_redis()
     data = await r.get(f"user:{user_id}")
     if not data:
         raise HTTPException(status_code=404, detail="User not found")
@@ -197,9 +197,8 @@ async def get_user(user_id: str):
 
 
 @app.put("/users/{user_id}", response_model=UserResponse)
-async def update_user(user_id: str, payload: UserUpdate):
+async def update_user(user_id: str, payload: UserUpdate, r: RedisDep):
     """Update mutable user fields."""
-    r = get_redis()
     user_key = f"user:{user_id}"
     data = await r.get(user_key)
     if not data:
@@ -217,15 +216,17 @@ async def update_user(user_id: str, payload: UserUpdate):
 
 
 @app.delete("/users/{user_id}", status_code=204)
-async def delete_user(user_id: str):
-    """Soft-delete: remove from Redis. In a real system this would set a deleted_at flag."""
-    r = get_redis()
+async def delete_user(user_id: str, r: RedisDep):
+    """Delete user — uses a Redis pipeline for atomic removal of both keys."""
     user_key = f"user:{user_id}"
     data = await r.get(user_key)
     if not data:
         raise HTTPException(status_code=404, detail="User not found")
 
     user = json.loads(data)
-    # Remove email index
-    await r.delete(f"user:email:{user['email']}")
-    await r.delete(user_key)
+    # Atomic pipeline: both email index and user record are removed together.
+    # Without a pipeline, a crash between two deletes leaves stale index data.
+    async with r.pipeline(transaction=True) as pipe:
+        pipe.delete(f"user:email:{user['email']}")
+        pipe.delete(user_key)
+        await pipe.execute()

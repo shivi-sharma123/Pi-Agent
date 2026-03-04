@@ -15,8 +15,12 @@
 
 const express = require("express");
 const jwt = require("jsonwebtoken");
+const bcrypt = require("bcrypt");
 const { createClient } = require("redis");
 const promClient = require("prom-client");
+
+// Bcrypt work factor — 12 is a good balance of security vs. latency (~200ms)
+const BCRYPT_ROUNDS = parseInt(process.env.BCRYPT_ROUNDS || "12", 10);
 
 // ---------------------------------------------------------------------------
 // Prometheus metrics
@@ -126,15 +130,29 @@ app.post("/auth/login", async (req, res) => {
     // Look up user ID by email (stored by user-svc)
     const userId = await r.get(`user:email:${email}`);
     if (!userId) {
+      // Use a constant-time fake compare to prevent timing attacks on user enumeration
+      await bcrypt.compare(password, "$2b$12$invalidhashfortimingattackprevention");
       return res.status(401).json({ error: "Invalid credentials" });
     }
 
-    // For Phase 1 and demo, accept any password for existing user. TODO: add bcrypt.
     const userDataRaw = await r.get(`user:${userId}`);
     if (!userDataRaw) {
       return res.status(401).json({ error: "User not found" });
     }
     const user = JSON.parse(userDataRaw);
+
+    // Verify password using bcrypt.
+    // If the user was created before password hashing was added (no password_hash field),
+    // reject and ask them to reset. This prevents the old plaintext bypass.
+    if (!user.password_hash) {
+      return res.status(401).json({
+        error: "Password reset required. Please re-register or use the reset endpoint.",
+      });
+    }
+    const passwordMatch = await bcrypt.compare(password, user.password_hash);
+    if (!passwordMatch) {
+      return res.status(401).json({ error: "Invalid credentials" });
+    }
 
     // Issue access + refresh tokens
     const accessToken = jwt.sign(
@@ -159,6 +177,56 @@ app.post("/auth/login", async (req, res) => {
     });
   } catch (err) {
     console.error("Login error:", err);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+/**
+ * POST /auth/register
+ * Body: { email, name, password }
+ * Returns: { user_id, email }
+ *
+ * Hashes the password with bcrypt and stores the user in Redis.
+ * This endpoint is the canonical way to create users with hashed passwords.
+ */
+app.post("/auth/register", async (req, res) => {
+  const { email, name, password } = req.body;
+  if (!email || !name || !password) {
+    return res.status(400).json({ error: "email, name, and password are required" });
+  }
+  if (password.length < 8) {
+    return res.status(400).json({ error: "Password must be at least 8 characters" });
+  }
+
+  try {
+    const r = await getRedis();
+
+    // Check for existing user
+    if (await r.get(`user:email:${email}`)) {
+      return res.status(409).json({ error: "Email already registered" });
+    }
+
+    const { randomUUID } = require("crypto");
+    const userId = randomUUID();
+    const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
+    const now = new Date().toISOString();
+
+    const userData = {
+      id: userId,
+      email,
+      name,
+      phone: "",
+      password_hash: passwordHash,
+      created_at: now,
+      updated_at: now,
+    };
+
+    await r.set(`user:${userId}`, JSON.stringify(userData));
+    await r.set(`user:email:${email}`, userId);
+
+    return res.status(201).json({ user_id: userId, email });
+  } catch (err) {
+    console.error("Register error:", err);
     return res.status(500).json({ error: "Internal server error" });
   }
 });

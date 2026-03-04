@@ -1,0 +1,4 @@
+fastapi>=0.111
+uvicorn[standard]>=0.29
+elasticsearch[async]>=8.12,<9.0
+prometheus-client>=0.20

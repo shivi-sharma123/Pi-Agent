@@ -31,6 +31,10 @@ services:
         condition: service_healthy
       payment-svc:
         condition: service_healthy
+      product-svc:
+        condition: service_healthy
+      search-svc:
+        condition: service_healthy
     networks:
       - sre-net
     restart: unless-stopped
@@ -152,3 +156,390 @@ services:
         limits:
           cpus: "0.5"
           memory: 256M
+
+  # -------------------------------------------------------------------------
+  # Phase 2 — New Microservices
+  # -------------------------------------------------------------------------
+
+  product-svc:
+    build: ./services/product-service
+    container_name: product-svc
+    environment:
+      ELASTICSEARCH_URL: http://elasticsearch:9200
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    ports:
+      - "8003:8003"
+    networks:
+      - sre-net
+    deploy:
+      resources:
+        limits: { cpus: "0.5", memory: 256M }
+
+  search-svc:
+    build: ./services/search-service
+    container_name: search-svc
+    environment:
+      ELASTICSEARCH_URL: http://elasticsearch:9200
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    ports:
+      - "8006:8006"
+    networks:
+      - sre-net
+    deploy:
+      resources:
+        limits: { cpus: "0.5", memory: 256M }
+
+  notification-worker:
+    build: ./services/notification-worker
+    container_name: notification-worker
+    environment:
+      NATS_URL: nats://nats:4222
+    depends_on:
+      nats:
+        condition: service_healthy
+    ports:
+      - "8007:8007"
+    networks:
+      - sre-net
+    deploy:
+      replicas: 1
+      resources:
+        limits: { cpus: "0.25", memory: 128M }
+
+  inventory-worker:
+    build: ./services/inventory-worker
+    container_name: inventory-worker
+    environment:
+      NATS_URL: nats://nats:4222
+      DATABASE_URL: postgres://postgres:postgres@postgres-inventory:5432/inventory?sslmode=disable
+    depends_on:
+      nats:
+        condition: service_healthy
+      postgres-inventory:
+        condition: service_healthy
+    ports:
+      - "8008:8008"
+    networks:
+      - sre-net
+    deploy:
+      resources:
+        limits: { cpus: "0.25", memory: 128M }
+
+  analytics-worker:
+    build: ./services/analytics-worker
+    container_name: analytics-worker
+    environment:
+      NATS_URL: nats://nats:4222
+      REDIS_URL: redis://redis:6379/2
+    depends_on:
+      nats:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "8009:8009"
+    networks:
+      - sre-net
+    deploy:
+      resources:
+        limits: { cpus: "0.25", memory: 128M }
+
+  # -------------------------------------------------------------------------
+  # Phase 2 — Observability Stack
+  # -------------------------------------------------------------------------
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    volumes:
+      - ./config/prometheus:/etc/prometheus
+      - promdata:/prometheus
+    ports:
+      - "9090:9090"
+    networks:
+      - sre-net
+
+  alertmanager:
+    image: prom/alertmanager:latest
+    container_name: alertmanager
+    volumes:
+      - ./config/alertmanager:/etc/alertmanager
+    ports:
+      - "9093:9093"
+    networks:
+      - sre-net
+
+  loki:
+    image: grafana/loki:latest
+    container_name: loki
+    volumes:
+      - ./config/loki/loki.yml:/etc/loki/local-config.yaml
+      - lokidata:/loki
+    ports:
+      - "3100:3100"
+    networks:
+      - sre-net
+
+  promtail:
+    image: grafana/promtail:latest
+    container_name: promtail
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./config/loki/promtail.yml:/etc/promtail/config.yml
+    command: -config.file=/etc/promtail/config.yml
+    networks:
+      - sre-net
+
+  tempo:
+    image: grafana/tempo:latest
+    container_name: tempo
+    command: [ "-config.file=/etc/tempo.yaml" ]
+    volumes:
+      - ./config/tempo/tempo.yml:/etc/tempo.yaml
+      - tempodata:/var/tempo
+    ports:
+      - "3200:3200"
+      - "4317:4317"
+    networks:
+      - sre-net
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    volumes:
+      - ./config/grafana/provisioning:/etc/grafana/provisioning
+      - grafanadata:/var/lib/grafana
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+      - loki
+      - tempo
+    networks:
+      - sre-net
+
+  # -------------------------------------------------------------------------
+  # Phase 3 — Observer Agents
+  # -------------------------------------------------------------------------
+
+  metrics-observer:
+    build:
+      context: .
+      dockerfile: ./agents/observer/Dockerfile
+    container_name: metrics-observer
+    environment:
+      OBSERVER_TYPE: metrics
+      NATS_URL: nats://nats:4222
+      PROMETHEUS_URL: http://prometheus:9090
+    depends_on:
+      nats:
+        condition: service_healthy
+      prometheus:
+        condition: service_started
+    networks:
+      - sre-net
+    deploy:
+      resources:
+        limits: { cpus: "0.25", memory: 128M }
+
+  log-observer:
+    build:
+      context: .
+      dockerfile: ./agents/observer/Dockerfile
+    container_name: log-observer
+    environment:
+      OBSERVER_TYPE: logs
+      NATS_URL: nats://nats:4222
+      LOKI_URL: http://loki:3100
+    depends_on:
+      nats:
+        condition: service_healthy
+      loki:
+        condition: service_started
+    networks:
+      - sre-net
+    deploy:
+      resources:
+        limits: { cpus: "0.25", memory: 128M }
+
+  health-observer:
+    build:
+      context: .
+      dockerfile: ./agents/observer/Dockerfile
+    container_name: health-observer
+    environment:
+      OBSERVER_TYPE: health
+      NATS_URL: nats://nats:4222
+    depends_on:
+      nats:
+        condition: service_healthy
+    networks:
+      - sre-net
+    deploy:
+      resources:
+        limits: { cpus: "0.25", memory: 128M }
+
+  synthetic-prober:
+    build:
+      context: .
+      dockerfile: ./agents/observer/Dockerfile
+    container_name: synthetic-prober
+    environment:
+      OBSERVER_TYPE: synthetic
+      NATS_URL: nats://nats:4222
+    depends_on:
+      nats:
+        condition: service_healthy
+      api-gateway:
+        condition: service_started
+    networks:
+      - sre-net
+    deploy:
+      resources:
+        limits: { cpus: "0.25", memory: 128M }
+
+  # -------------------------------------------------------------------------
+  # Phase 3 — Diagnoser Agent
+  # -------------------------------------------------------------------------
+
+  diagnoser-agent:
+    build:
+      context: .
+      dockerfile: ./agents/diagnoser/Dockerfile
+    container_name: diagnoser-agent
+    environment:
+      NATS_URL: nats://nats:4222
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+    depends_on:
+      nats:
+        condition: service_healthy
+    networks:
+      - sre-net
+    deploy:
+      resources:
+        limits: { cpus: "0.5", memory: 256M }
+
+  # -------------------------------------------------------------------------
+  # Phase 4 — Remediation & Safety Agents
+  # -------------------------------------------------------------------------
+
+  safety-agent:
+    build:
+      context: .
+      dockerfile: ./agents/safety/Dockerfile
+    container_name: safety-agent
+    environment:
+      NATS_URL: nats://nats:4222
+    depends_on:
+      nats:
+        condition: service_healthy
+    networks:
+      - sre-net
+    deploy:
+      resources:
+        limits: { cpus: "0.25", memory: 128M }
+
+  remediator-agent:
+    build:
+      context: .
+      dockerfile: ./agents/remediator/Dockerfile
+    container_name: remediator-agent
+    environment:
+      NATS_URL: nats://nats:4222
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      nats:
+        condition: service_healthy
+      safety-agent:
+        condition: service_started
+    networks:
+      - sre-net
+    deploy:
+      resources:
+        limits: { cpus: "0.5", memory: 256M }
+
+  # -------------------------------------------------------------------------
+  # Phase 5 — Orchestrator Agent
+  # -------------------------------------------------------------------------
+
+  orchestrator-agent:
+    build:
+      context: .
+      dockerfile: ./agents/orchestrator/Dockerfile
+    container_name: orchestrator-agent
+    environment:
+      NATS_URL: nats://nats:4222
+      AGENTS_DB_HOST: postgres-agents
+      AGENTS_DB_PORT: "5432"
+      AGENTS_DB_NAME: agents
+      AGENTS_DB_USER: postgres
+      AGENTS_DB_PASSWORD: postgres
+    depends_on:
+      nats:
+        condition: service_healthy
+      postgres-agents:
+        condition: service_healthy
+    networks:
+      - sre-net
+    deploy:
+      resources:
+        limits: { cpus: "0.5", memory: 256M }
+
+  # -------------------------------------------------------------------------
+  # Phase 5 — Dashboard API (FastAPI) — :8010
+  # -------------------------------------------------------------------------
+
+  dashboard-api:
+    build:
+      context: .
+      dockerfile: ./dashboard/Dockerfile
+    container_name: dashboard-api
+    environment:
+      NATS_URL: nats://nats:4222
+      AGENTS_DB_HOST: postgres-agents
+      AGENTS_DB_PORT: "5432"
+      AGENTS_DB_NAME: agents
+      AGENTS_DB_USER: postgres
+      AGENTS_DB_PASSWORD: postgres
+    ports:
+      - "8010:8010"
+    depends_on:
+      nats:
+        condition: service_healthy
+      postgres-agents:
+        condition: service_healthy
+    networks:
+      - sre-net
+    deploy:
+      resources:
+        limits: { cpus: "0.5", memory: 256M }
+
+  # -------------------------------------------------------------------------
+  # Phase 5 — Dashboard Frontend (React) — :3001
+  # -------------------------------------------------------------------------
+
+  dashboard-frontend:
+    build:
+      context: .
+      dockerfile: ./dashboard/frontend/Dockerfile
+    container_name: dashboard-frontend
+    ports:
+      - "3001:3001"
+    depends_on:
+      - dashboard-api
+    networks:
+      - sre-net
+    deploy:
+      resources:
+        limits: { cpus: "0.25", memory: 128M }
+
+volumes:
+  promdata:
+  lokidata:
+  tempodata:
+  grafanadata:

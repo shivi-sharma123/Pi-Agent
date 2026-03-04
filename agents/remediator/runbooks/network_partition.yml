@@ -1,0 +1,23 @@
+---
+id: runbook_network_partition
+name: "Network Partition Remediation"
+matches:
+  root_cause_category: "network_partition"
+  confidence_minimum: 70
+
+actions:
+  - id: "circuit_break_target"
+    type: "circuit_breaker"
+    description: "Open the circuit breaker to the failing upstream service"
+    params:
+      target: "{{diagnosis.root_cause.service}}"
+      state: "open"
+    risk: "high"
+    approval_required: true
+
+verification:
+  wait_seconds: 10
+  checks:
+    - type: "health_check"
+      endpoint: "http://api-gateway:8000/health"
+      expected_status: 200

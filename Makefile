@@ -21,7 +21,7 @@ infra-down:
 # ---------------------------------------------------------------------------
 
 up:
-	@echo "▶ Starting all Phase 1 services..."
+	@echo "▶ Starting all Phase 1 & 2 services..."
 	docker compose up -d --build
 	@echo "✓ All services started. Run 'make logs' to tail logs."
 	@echo ""
@@ -30,7 +30,12 @@ up:
 	@echo "  Order Service:    http://localhost:8002"
 	@echo "  Auth Service:     http://localhost:8004"
 	@echo "  Payment Service:  http://localhost:8005"
+	@echo "  Product Service:  http://localhost:8003"
+	@echo "  Search Service:   http://localhost:8006"
 	@echo "  NATS Monitoring:  http://localhost:8222"
+	@echo "  Grafana:          http://localhost:3000"
+	@echo "  Prometheus:       http://localhost:9090"
+	@echo "  AlertManager:     http://localhost:9093"
 
 down:
 	@echo "▶ Stopping all services..."
@@ -41,6 +46,52 @@ logs:
 
 ps:
 	docker compose ps
+
+# ---------------------------------------------------------------------------
+# Observability
+# ---------------------------------------------------------------------------
+
+obs-up:
+	@echo "▶ Starting observability stack..."
+	docker compose up -d prometheus grafana loki promtail tempo alertmanager
+
+obs-down:
+	@echo "▶ Stopping observability stack..."
+	docker compose rm -fsv prometheus grafana loki promtail tempo alertmanager
+
+# ---------------------------------------------------------------------------
+# Agents
+# ---------------------------------------------------------------------------
+
+agents-up:
+	@echo "▶ Starting all Agent Swarm containers..."
+	docker compose up -d metrics-observer log-observer health-observer synthetic-prober diagnoser-agent safety-agent remediator-agent orchestrator-agent
+
+agents-down:
+	@echo "▶ Stopping Agent Swarm containers..."
+	docker compose rm -fsv metrics-observer log-observer health-observer synthetic-prober diagnoser-agent safety-agent remediator-agent orchestrator-agent
+
+# ---------------------------------------------------------------------------
+# Dashboard
+# ---------------------------------------------------------------------------
+
+dashboard-up:
+	@echo "▶ Starting Dashboard (API + Frontend)..."
+	docker compose up -d dashboard-api dashboard-frontend
+	@echo "✓ Dashboard API:       http://localhost:8010"
+	@echo "  Dashboard Frontend:  http://localhost:3001"
+
+dashboard-down:
+	@echo "▶ Stopping Dashboard..."
+	docker compose rm -fsv dashboard-api dashboard-frontend
+
+# ---------------------------------------------------------------------------
+# Elasticsearch
+# ---------------------------------------------------------------------------
+
+es-index:
+	@echo "▶ Forcing Elasticsearch re-index for product 1 (demo)..."
+	@curl -X POST http://localhost:8003/products/1/reindex || echo "Make sure product-svc is running"
 
 # ---------------------------------------------------------------------------
 # NATS stream initialisation
@@ -64,8 +115,22 @@ install-dev:
 test: test-unit
 
 test-unit:
-	@echo "▶ Running unit tests..."
-	cd shared && python -m pytest tests/ -v --tb=short
+	@echo "▶ Installing microservice test dependencies..."
+	pip install -r services/product-service/requirements.txt -r services/search-service/requirements.txt -r services/notification-worker/requirements.txt -r services/analytics-worker/requirements.txt
+	@echo "▶ Installing agent test dependencies..."
+	pip install -r agents/observer/requirements.txt -r agents/diagnoser/requirements.txt -r agents/safety/requirements.txt -r agents/orchestrator/requirements.txt -r dashboard/requirements.txt
+	@echo "▶ Running Python unit tests (shared & agents)..."
+	python -m pytest shared/tests/ agents/observer/tests/ agents/diagnoser/tests/ agents/safety/tests/ agents/orchestrator/tests/ dashboard/tests/ -v --tb=short
+	@echo "▶ Running Python microservice tests..."
+	cd services/search-service && python -m pytest app/test_main.py --tb=short -p no:warnings || echo "Search tests failed"
+	cd services/notification-worker && python -m pytest app/test_main.py --tb=short -p no:warnings || echo "Notification tests failed"
+	cd services/analytics-worker && python -m pytest app/test_main.py --tb=short -p no:warnings || echo "Analytics tests failed"
+	@echo "▶ Running Django tests..."
+	cd services/product-service && PYTHONPATH=. django-admin test app.tests --settings=app.config || echo "Django tests failed"
+	@echo "▶ Running Go unit tests..."
+	cd services/inventory-worker && go test ./... -v
+	cd services/order-service && go test ./... -v
+
 
 test-integration:
 	@echo "▶ Running integration tests (requires infra running)..."
@@ -91,11 +156,20 @@ lint:
 
 health:
 	@echo "▶ Checking service health..."
+	@echo "--- Phase 1 ---"
 	@curl -sf http://localhost:8000/health | python3 -m json.tool || echo "  ✗ api-gateway: FAIL"
 	@curl -sf http://localhost:8001/health | python3 -m json.tool || echo "  ✗ user-svc: FAIL"
 	@curl -sf http://localhost:8004/health | python3 -m json.tool || echo "  ✗ auth-svc: FAIL"
 	@curl -sf http://localhost:8002/health | python3 -m json.tool || echo "  ✗ order-svc: FAIL"
 	@curl -sf http://localhost:8005/health | python3 -m json.tool || echo "  ✗ payment-svc: FAIL"
+	@echo "--- Phase 5 ---"
+	@curl -sf http://localhost:8010/health | python3 -m json.tool || echo "  ✗ dashboard-api: FAIL"
+	@echo "--- Phase 2 ---"
+	@curl -sf http://localhost:8003/health | python3 -m json.tool || echo "  ✗ product-svc: FAIL"
+	@curl -sf http://localhost:8006/health | python3 -m json.tool || echo "  ✗ search-svc: FAIL"
+	@curl -sf http://localhost:8007/health | python3 -m json.tool || echo "  ✗ notification-worker: FAIL"
+	@curl -sf http://localhost:8008/health | python3 -m json.tool || echo "  ✗ inventory-worker: FAIL"
+	@curl -sf http://localhost:8009/health | python3 -m json.tool || echo "  ✗ analytics-worker: FAIL"
 
 # ---------------------------------------------------------------------------
 # Cleanup

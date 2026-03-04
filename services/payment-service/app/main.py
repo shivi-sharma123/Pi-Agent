@@ -22,11 +22,11 @@ import os
 import time
 import uuid
 from contextlib import asynccontextmanager
-from typing import Optional
+from typing import Annotated, Optional
 
 import asyncpg
 import nats
-from fastapi import FastAPI, HTTPException, Response
+from fastapi import Depends, FastAPI, HTTPException, Response
 from fastapi.middleware.cors import CORSMiddleware
 from prometheus_client import Counter, Histogram, generate_latest, CONTENT_TYPE_LATEST
 from pydantic import BaseModel, Field
@@ -70,11 +70,25 @@ REQUEST_LATENCY = Histogram(
 PAYMENTS_TOTAL = Counter("payments_total", "Total payments processed", ["status"])
 
 # ---------------------------------------------------------------------------
-# Global clients
+# App state (set during lifespan)
 # ---------------------------------------------------------------------------
 
 _pg_pool: asyncpg.Pool | None = None
 _nc: nats.NATS | None = None
+
+
+# ---------------------------------------------------------------------------
+# FastAPI dependency injection helpers
+# ---------------------------------------------------------------------------
+
+async def get_pool() -> asyncpg.Pool:
+    """Dependency that returns the live DB pool or raises 503 if not ready."""
+    if _pg_pool is None:
+        raise HTTPException(status_code=503, detail="Database pool not initialised")
+    return _pg_pool
+
+
+PoolDep = Annotated[asyncpg.Pool, Depends(get_pool)]
 
 # ---------------------------------------------------------------------------
 # App lifecycle
@@ -162,14 +176,16 @@ async def metrics_middleware(request, call_next):
 
 @app.get("/health")
 async def health():
+    """Liveness + dependency health check. Safe even before pool is ready."""
     db_ok = False
     nats_ok = _nc is not None and not _nc.is_closed
-    try:
-        async with _pg_pool.acquire() as conn:
-            await conn.fetchval("SELECT 1")
-        db_ok = True
-    except Exception:
-        pass
+    if _pg_pool is not None:  # guard against startup before pool is ready
+        try:
+            async with _pg_pool.acquire() as conn:
+                await conn.fetchval("SELECT 1")
+            db_ok = True
+        except Exception:
+            pass
 
     status = "healthy" if db_ok else "degraded"
     return {
@@ -189,7 +205,7 @@ async def metrics():
 
 
 @app.post("/payments", status_code=201, response_model=PaymentResponse)
-async def create_payment(payload: PaymentCreate):
+async def create_payment(payload: PaymentCreate, pool: PoolDep):
     """
     Initiate payment for an order.
 
@@ -202,11 +218,10 @@ async def create_payment(payload: PaymentCreate):
     # Simulate brief processing
     await asyncio.sleep(0.1)
 
-    # Mark as completed (Phase 1 always succeeds)
     status = "completed"
     failure_reason = None
 
-    async with _pg_pool.acquire() as conn:
+    async with pool.acquire() as conn:
         await conn.execute(
             """INSERT INTO payments (id, order_id, status, amount, currency, method, created_at, updated_at)
                VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())""",
@@ -215,7 +230,6 @@ async def create_payment(payload: PaymentCreate):
 
     PAYMENTS_TOTAL.labels(status=status).inc()
 
-    # Publish NATS event
     subject = "payments.completed" if status == "completed" else "payments.failed"
     await _publish_event(subject, {
         "payment_id": payment_id,
@@ -239,8 +253,8 @@ async def create_payment(payload: PaymentCreate):
 
 
 @app.get("/payments/{payment_id}", response_model=PaymentResponse)
-async def get_payment(payment_id: str):
-    async with _pg_pool.acquire() as conn:
+async def get_payment(payment_id: str, pool: PoolDep):
+    async with pool.acquire() as conn:
         row = await conn.fetchrow(
             "SELECT id, order_id, status, amount, currency, method, failure_reason, created_at, updated_at "
             "FROM payments WHERE id=$1",
@@ -262,8 +276,8 @@ async def get_payment(payment_id: str):
 
 
 @app.post("/payments/{payment_id}/refund", response_model=PaymentResponse)
-async def refund_payment(payment_id: str):
-    async with _pg_pool.acquire() as conn:
+async def refund_payment(payment_id: str, pool: PoolDep):
+    async with pool.acquire() as conn:
         row = await conn.fetchrow("SELECT * FROM payments WHERE id=$1", payment_id)
         if not row:
             raise HTTPException(status_code=404, detail="Payment not found")

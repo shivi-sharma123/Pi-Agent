@@ -1,0 +1,89 @@
+# Prometheus configuration for SRE Agent Swarm — Phase 2
+# Scrapes all 10 services + 3 workers every 15 seconds.
+
+global:
+  scrape_interval: 15s
+  scrape_timeout: 10s
+  evaluation_interval: 15s
+  external_labels:
+    environment: local
+    project: sre-agent-swarm
+
+# ── Alert rules ────────────────────────────────────────────────────────────
+rule_files:
+  - alerts.yml
+
+# ── AlertManager ──────────────────────────────────────────────────────────
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ["alertmanager:9093"]
+
+# ── Scrape configs ─────────────────────────────────────────────────────────
+scrape_configs:
+  # Prometheus itself
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  # ── Phase 1 services ────────────────────────────────────────────────────
+
+  - job_name: user-svc
+    static_configs:
+      - targets: ["user-svc:8001"]
+    metrics_path: /metrics
+
+  - job_name: auth-svc
+    static_configs:
+      - targets: ["auth-svc:8004"]
+    metrics_path: /metrics
+
+  - job_name: order-svc
+    static_configs:
+      - targets: ["order-svc:8002"]
+    metrics_path: /metrics
+
+  - job_name: payment-svc
+    static_configs:
+      - targets: ["payment-svc:8005"]
+    metrics_path: /metrics
+
+  # ── Phase 2 services ────────────────────────────────────────────────────
+
+  - job_name: product-svc
+    static_configs:
+      - targets: ["product-svc:8003"]
+    metrics_path: /metrics
+
+  - job_name: search-svc
+    static_configs:
+      - targets: ["search-svc:8006"]
+    metrics_path: /metrics
+
+  - job_name: notification-worker
+    static_configs:
+      - targets: ["notification-worker:8007"]
+    metrics_path: /metrics
+
+  - job_name: inventory-worker
+    static_configs:
+      - targets: ["inventory-worker:8008"]
+    metrics_path: /metrics
+
+  - job_name: analytics-worker
+    static_configs:
+      - targets: ["analytics-worker:8009"]
+    metrics_path: /metrics
+
+  # ── Infrastructure ──────────────────────────────────────────────────────
+
+  # NATS monitoring HTTP endpoint
+  - job_name: nats
+    static_configs:
+      - targets: ["nats:8222"]
+    metrics_path: /metrics
+
+  # Node exporter (if added; skip if not running)
+  - job_name: node-exporter
+    static_configs:
+      - targets: ["node-exporter:9100"]

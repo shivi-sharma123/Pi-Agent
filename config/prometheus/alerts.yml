@@ -1,0 +1,96 @@
+# Prometheus alerting rules for SRE Agent Swarm
+# These rules are evaluated every 15s (global.evaluation_interval)
+# and fire to AlertManager when condition holds for the specified `for` duration.
+
+groups:
+  # ── Service Availability ─────────────────────────────────────────────────
+  - name: service_availability
+    rules:
+      - alert: ServiceDown
+        expr: up == 0
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: "Service {{ $labels.job }} is down"
+          description: >
+            Instance {{ $labels.instance }} of service {{ $labels.job }} has been
+            unreachable for more than 30 seconds.
+
+      - alert: HighErrorRate
+        expr: |
+          (
+            sum(rate(http_requests_total{status_code=~"5.."}[1m])) by (job)
+            /
+            sum(rate(http_requests_total[1m])) by (job)
+          ) > 0.05
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High HTTP 5xx error rate on {{ $labels.job }}"
+          description: >
+            {{ $labels.job }} has an error rate of {{ $value | humanizePercentage }}
+            (threshold: 5%) over the last 1 minute.
+
+      - alert: HighLatencyP99
+        expr: |
+          histogram_quantile(0.99,
+            rate(http_request_duration_seconds_bucket[2m])
+          ) > 1.0
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High P99 latency on {{ $labels.job }}"
+          description: >
+            {{ $labels.job }} p99 latency is {{ $value | humanizeDuration }},
+            which exceeds the 1s SLO target.
+
+  # ── NATS Consumer Lag ────────────────────────────────────────────────────
+  - name: nats_consumers
+    rules:
+      - alert: NATSConsumerLag
+        expr: |
+          nats_consumer_num_pending > 1000
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "NATS consumer {{ $labels.consumer }} has high lag"
+          description: >
+            Consumer {{ $labels.consumer }} on stream {{ $labels.stream }} has
+            {{ $value }} pending messages (threshold: 1000).
+
+  # ── Inventory ─────────────────────────────────────────────────────────────
+  - name: inventory
+    rules:
+      - alert: LowStock
+        expr: inventory_low_stock_alerts_total > 0
+        for: 0m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Low stock alert triggered"
+          description: >
+            inventory-worker has published at least one low-stock alert.
+            Check Grafana inventory dashboard for affected products.
+
+  # ── Payment Health ────────────────────────────────────────────────────────
+  - name: payments
+    rules:
+      - alert: HighPaymentFailureRate
+        expr: |
+          (
+            rate(payments_total{status="failed"}[5m])
+            /
+            rate(payments_total[5m])
+          ) > 0.10
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High payment failure rate"
+          description: >
+            Payment failure rate is {{ $value | humanizePercentage }} over the
+            last 5 minutes (threshold: 10%).

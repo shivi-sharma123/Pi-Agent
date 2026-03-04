@@ -57,11 +57,16 @@ class BaseAgent(abc.ABC):
         self,
         nats_url: str | None = None,
         heartbeat_interval: int | None = None,
+        nats_connect_timeout: int | None = None,
     ) -> None:
         # Unique instance ID — useful when running multiple replicas
         self.agent_id = f"{self.agent_type}.{socket.gethostname()}.{uuid.uuid4().hex[:8]}"
         self.nats_url = nats_url or settings.nats_url
         self.heartbeat_interval = heartbeat_interval or settings.agent_heartbeat_interval_seconds
+        # How long to wait for NATS to become available on startup (seconds)
+        self.nats_connect_timeout = nats_connect_timeout or getattr(
+            settings, "nats_connect_timeout_seconds", 10
+        )
 
         self.nats: NATSClient = NATSClient(url=self.nats_url)
         self._running: bool = False
@@ -96,8 +101,17 @@ class BaseAgent(abc.ABC):
         for sig in (signal.SIGINT, signal.SIGTERM):
             loop.add_signal_handler(sig, lambda: asyncio.create_task(self.stop()))
 
-        # Connect to NATS
-        await self.nats.connect()
+        # Connect to NATS (with timeout to avoid blocking forever if NATS is unreachable)
+        try:
+            await asyncio.wait_for(
+                self.nats.connect(),
+                timeout=self.nats_connect_timeout,
+            )
+        except asyncio.TimeoutError:
+            raise RuntimeError(
+                f"NATS connect timeout after {self.nats_connect_timeout}s "
+                f"(url={self.nats_url})"
+            )
         self._log.info("NATS connected")
 
         # Subclass setup

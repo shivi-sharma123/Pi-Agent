@@ -348,10 +348,18 @@ func (s *Server) listOrders(c *gin.Context) {
 		var o Order
 		var itemsJSON []byte
 		if err := rows.Scan(&o.ID, &o.UserID, &o.Status, &itemsJSON, &o.Total, &o.CreatedAt, &o.UpdatedAt); err != nil {
+			log.Printf("WARN: failed to scan order row: %v", err)
 			continue
 		}
-		_ = json.Unmarshal(itemsJSON, &o.Items)
+		if err := json.Unmarshal(itemsJSON, &o.Items); err != nil {
+			log.Printf("WARN: malformed items JSON for order %s: %v", o.ID, err)
+			o.Items = []OrderItem{} // return empty slice rather than nil
+		}
 		orders = append(orders, o)
+	}
+	if err := rows.Err(); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error iterating orders"})
+		return
 	}
 	c.JSON(http.StatusOK, orders)
 }
@@ -365,7 +373,10 @@ func (s *Server) fetchOrder(ctx context.Context, id string) (*Order, error) {
 	if err := row.Scan(&o.ID, &o.UserID, &o.Status, &itemsJSON, &o.Total, &o.CreatedAt, &o.UpdatedAt); err != nil {
 		return nil, err
 	}
-	_ = json.Unmarshal(itemsJSON, &o.Items)
+	if err := json.Unmarshal(itemsJSON, &o.Items); err != nil {
+		log.Printf("WARN: malformed items JSON for order %s: %v", id, err)
+		o.Items = []OrderItem{}
+	}
 	return &o, nil
 }
 

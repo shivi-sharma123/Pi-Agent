@@ -1,0 +1,49 @@
+# Tempo configuration for SRE Agent Swarm
+# OTLP receiver on 4317 (gRPC) and 4318 (HTTP), filesystem storage.
+
+stream_over_http_enabled: true
+
+server:
+  http_listen_port: 3200
+  log_level: warn
+
+distributor:
+  receivers:
+    otlp:
+      protocols:
+        grpc:
+          endpoint: 0.0.0.0:4317
+        http:
+          endpoint: 0.0.0.0:4318
+
+ingester:
+  max_block_duration: 5m
+
+compactor:
+  compaction:
+    block_retention: 48h
+
+storage:
+  trace:
+    backend: local
+    local:
+      path: /var/tempo/blocks
+    wal:
+      path: /var/tempo/wal
+
+# ── Query frontend ─────────────────────────────────────────────────────────
+querier:
+  frontend_worker:
+    frontend_address: tempo:9095
+
+# ── Metrics generator (Prometheus metrics from traces) ────────────────────
+metrics_generator:
+  registry:
+    external_labels:
+      source: tempo
+      cluster: sre-local
+  storage:
+    path: /var/tempo/generator/wal
+  processors:
+    - service-graphs
+    - span-metrics
