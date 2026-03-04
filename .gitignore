@@ -14,3 +14,5 @@ pgdata*/
 redisdata/
 natsdata/
 go.sum
+.claude/
+.cursor/
