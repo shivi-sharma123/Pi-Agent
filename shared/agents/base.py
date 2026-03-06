@@ -27,7 +27,7 @@ import logging
 import signal
 import socket
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
 from shared.config.settings import settings
 from shared.logging.logger import bind_context, get_logger
@@ -70,7 +70,7 @@ class BaseAgent(abc.ABC):
 
         self.nats: NATSClient = NATSClient(url=self.nats_url)
         self._running: bool = False
-        self._start_time: datetime = datetime.utcnow()
+        self._start_time: datetime = datetime.now(timezone.utc)
         self._messages_processed: int = 0
         self._errors: int = 0
 
@@ -183,7 +183,7 @@ class BaseAgent(abc.ABC):
 
     async def _publish_heartbeat(self) -> None:
         """Build and publish a single heartbeat message."""
-        uptime = (datetime.utcnow() - self._start_time).total_seconds()
+        uptime = (datetime.now(timezone.utc) - self._start_time).total_seconds()
         msg = build_message(
             source_agent=self.agent_id,
             target_agent="orchestrator",
@@ -196,7 +196,7 @@ class BaseAgent(abc.ABC):
                 "uptime_seconds": uptime,
                 "messages_processed": self._messages_processed,
                 "errors": self._errors,
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
             },
             priority=3,  # low priority — don't compete with incident traffic
             ttl_seconds=self.heartbeat_interval * 3,  # expires after 3 missed beats

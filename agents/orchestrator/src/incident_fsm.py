@@ -9,7 +9,7 @@ Pure state machine with no external dependencies. Fully unit-testable.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 
@@ -64,7 +64,7 @@ class IncidentFSM:
             raise ValueError(f"Invalid initial state: {initial_state}")
         self.incident_id = incident_id
         self.state = initial_state
-        self.state_entered_at = state_entered_at or datetime.utcnow()
+        self.state_entered_at = state_entered_at or datetime.now(timezone.utc)
         self.retry_count = retry_count
         self.history: list[dict] = []
 
@@ -82,7 +82,7 @@ class IncidentFSM:
                 f"Invalid transition: {self.state} -> {target} "
                 f"(allowed: {TRANSITIONS.get(self.state, set())})"
             )
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         self.history.append({
             "from": self.state,
             "to": target,
@@ -98,7 +98,7 @@ class IncidentFSM:
         timeout = STATE_TIMEOUTS.get(self.state)
         if timeout is None:
             return False  # resolved/closed don't time out
-        elapsed = (datetime.utcnow() - self.state_entered_at).total_seconds()
+        elapsed = (datetime.now(timezone.utc) - self.state_entered_at).total_seconds()
         return elapsed > timeout
 
     def should_retry(self) -> bool:
@@ -108,7 +108,7 @@ class IncidentFSM:
     def increment_retry(self) -> int:
         """Increment retry counter and reset the timeout clock. Returns new count."""
         self.retry_count += 1
-        self.state_entered_at = datetime.utcnow()
+        self.state_entered_at = datetime.now(timezone.utc)
         return self.retry_count
 
     @property

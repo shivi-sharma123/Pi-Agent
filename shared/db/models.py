@@ -12,7 +12,7 @@ All models use async-compatible types (asyncpg under the hood).
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 from sqlalchemy import (
@@ -120,8 +120,12 @@ class Incident(Base):
     @property
     def duration_seconds(self) -> Optional[float]:
         """Seconds from creation to resolution (or now if still open)."""
-        end = self.resolved_at or datetime.utcnow()
-        return (end - self.created_at).total_seconds()
+        end = self.resolved_at or datetime.now(timezone.utc)
+        start = self.created_at
+        # Ensure both are aware or both are naive to avoid TypeError
+        if start and start.tzinfo is None and end.tzinfo is not None:
+            start = start.replace(tzinfo=timezone.utc)
+        return (end - start).total_seconds()
 
     def to_dict(self) -> dict[str, Any]:
         return {

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
@@ -81,7 +81,7 @@ async def approve_action(
             "decision": "approve",
             "reason": body.reason if body else "",
             "approved_by": "operator",
-            "approved_at": datetime.utcnow().isoformat(),
+            "approved_at": datetime.now(timezone.utc).isoformat(),
         },
         correlation_id=incident_id,
         priority=0,
@@ -117,7 +117,7 @@ async def reject_action(
             "decision": "reject",
             "reason": body.reason,
             "rejected_by": "operator",
-            "rejected_at": datetime.utcnow().isoformat(),
+            "rejected_at": datetime.now(timezone.utc).isoformat(),
         },
         correlation_id=incident_id,
         priority=0,

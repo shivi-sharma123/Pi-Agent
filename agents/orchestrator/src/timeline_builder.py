@@ -6,7 +6,7 @@ No external dependencies. Operates on plain lists/dicts.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 EVENT_TYPES = (
@@ -38,7 +38,7 @@ def add_event(
         "agent": agent,
         "summary": summary,
         "details": details or {},
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     })
     return timeline
 

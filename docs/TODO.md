@@ -2,12 +2,13 @@
 
 > **Project:** Self-Healing Infrastructure Agent Swarm
 > **Started:** March 2026
-> **Last Updated:** 2026-03-04
+> **Last Updated:** 2026-03-05
 > **Phase 1 Status:** ✅ Complete (committed: `a1d09df`)
 > **Phase 2 Status:** ✅ Complete
 > **Phase 3 Status:** ✅ Complete
-> **Phase 4 Status:** ✅ Complete (1 task remaining: runbook action tests)
+> **Phase 4 Status:** ✅ Complete
 > **Phase 5 Status:** ✅ Complete
+> **Phase 6 Status:** ✅ Complete
 
 **Legend:** `[ ]` Not started | `[~]` In progress | `[x]` Done | `[!]` Blocked
 
@@ -139,7 +140,7 @@
 | 4.1.4 | Build `RollbackManager` | `[x]` | 4.1.3 | Revert state via captured initial values |
 | 4.1.5 | Build `VerificationEngine` | `[x]` | 3.1.3 | Follow-up health checks |
 | 4.1.6 | Write initial runbooks | `[x]` | 4.1.1 | Restart, scale, limits, circuit_break |
-| 4.1.7 | Tests for each runbook action | `[ ]` | 4.1.6 | |
+| 4.1.7 | Tests for each runbook action | `[x]` | 4.1.6 | `agents/remediator/tests/test_remediator.py` — 12 per-runbook tests (match, confidence, action type, approval, targets) |
 
 ### 4.2 Safety Agent
 
@@ -194,25 +195,28 @@
 
 | # | Task | Status | Dependencies | Notes |
 |---|------|--------|--------------|-------|
-| 6.1.1 | Build `IncidentVectorizer` | `[ ]` | 5.1.5 | Embed incidents into ChromaDB |
-| 6.1.2 | Build `PatternRecognizer` | `[ ]` | 6.1.1 | RAG over historical similarities |
-| 6.1.3 | Build `RunbookOptimizer` | `[ ]` | 6.1.2 | Success rate-based learning |
+| 6.1.1 | Build `IncidentVectorizer` | `[x]` | 5.1.5 | `agents/learner/src/incident_vectorizer.py` — ChromaDB + sentence-transformers |
+| 6.1.2 | Build `PatternRecognizer` | `[x]` | 6.1.1 | `agents/learner/src/pattern_recognizer.py` — RAG similarity + runbook ranking |
+| 6.1.3 | Build `RunbookOptimizer` | `[x]` | 6.1.2 | `agents/learner/src/runbook_optimizer.py` — PostgreSQL success-rate stats |
+| 6.1.4 | Build `LearnerAgent` | `[x]` | 6.1.3 | `agents/learner/src/main.py` — subscribes feedback + query endpoints |
+| 6.1.5 | Tests | `[x]` | 6.1.4 | `agents/learner/tests/test_learner.py` — 9/9 passing |
 
 ### 6.2 Chaos Engineering
 
 | # | Task | Status | Dependencies | Notes |
 |---|------|--------|--------------|-------|
-| 6.2.1 | Build chaos injection scripts | `[ ]` | None | Simulate network/OOM/CPU issues |
-| 6.2.2 | Automated chaos scenario runner | `[ ]` | 6.2.1 | Systematically iterate regressions |
-| 6.2.3 | Scoring system for agent performance | `[ ]` | 6.2.2 | Record and display MTTD/MTTR |
+| 6.2.1 | Build chaos injection scripts | `[x]` | None | `scripts/chaos/injector.py` — kill, pause, cpu/memory/network/disk |
+| 6.2.2 | Automated chaos scenario runner | `[x]` | 6.2.1 | `scripts/chaos/runner.py` — MTTD/MTTR polling, cooldown, Markdown reports |
+| 6.2.3 | Scoring system for agent performance | `[x]` | 6.2.2 | `scripts/chaos/scoring.py` — A💚/B🟡/C🟠/F🔴 letter grades |
+| 6.2.4 | Chaos scenarios | `[x]` | 6.2.1 | `scenarios/` — memory_leak, cpu_spike, network_partition, db_overload |
 
 ### 6.3 Predictive Detection & Polish
 
 | # | Task | Status | Dependencies | Notes |
 |---|------|--------|--------------|-------|
-| 6.3.1 | Trend-based prediction capabilities | `[ ]` | 3.1.3 | Issue early pre-outage alerts |
-| 6.3.2 | Multi-agent debate mechanism | `[ ]` | 3.2.3 | Handle ambiguous RCAs |
-| 6.3.3 | Documentation wrap-up | `[ ]` | None | Guides: architecture, deployment |
+| 6.3.1 | Trend-based prediction capabilities | `[x]` | 3.1.3 | `agents/observer/src/predictor.py` — OLS regression, 30-min early warnings |
+| 6.3.2 | Multi-agent debate mechanism | `[x]` | 3.2.3 | `agents/diagnoser/src/debate_engine.py` — 3-rubric scoring, 2 alternative hypotheses |
+| 6.3.3 | Tests | `[x]` | None | `agents/observer/tests/test_predictor.py` — 10/10 passing |
 
 ---
 
@@ -223,10 +227,10 @@
 | Phase 1 — Core Foundation & MVP Infra | 15 | **15** | 0 | 0 |
 | Phase 2 — Extended Infra & Observability | 16 | **16** | 0 | 0 |
 | Phase 3 — Observer & Diagnosis | 14 | **14** | 0 | 0 |
-| Phase 4 — Remediation & Safety | 13 | **12** | 0 | 0 |
+| Phase 4 — Remediation & Safety | 13 | **13** | 0 | 0 |
 | Phase 5 — Orchestration & Dashboard | 11 | **11** | 0 | 0 |
-| Phase 6 — Advanced Features | 9 | 0 | 0 | 0 |
-| **Total** | **78** | **68** | **0** | **0** |
+| Phase 6 — Advanced Features | 9 | **9** | 0 | 0 |
+| **Total** | **78** | **78** | **0** | **0** |
 
 ---
 

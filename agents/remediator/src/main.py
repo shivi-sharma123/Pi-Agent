@@ -124,7 +124,7 @@ class RemediatorAgent(BaseAgent):
             target_agent="agents.safety",
             message_type="safety_review_request",
             priority=request.priority,
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(timezone.utc),
             payload={
                 "diagnosis": diagnosis,
                 "action": action
@@ -205,7 +205,7 @@ class RemediatorAgent(BaseAgent):
             target_agent="agents.orchestrator",
             message_type="remediation_execution",
             priority=request.priority,
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(timezone.utc),
             payload={
                 "action_type": state["action"].get("type"),
                 "status": result,

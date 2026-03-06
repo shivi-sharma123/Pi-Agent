@@ -2,7 +2,7 @@
 
 import sys
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -71,7 +71,7 @@ class TestGetAvailableAgents:
         router.update_agent_status({
             "agent_id": "obs1", "agent_type": "agents.observer"
         })
-        router.registry["obs1"].last_seen_at = datetime.utcnow() - timedelta(seconds=200)
+        router.registry["obs1"].last_seen_at = datetime.now(timezone.utc) - timedelta(seconds=200)
         agents = router.get_available_agents("agents.observer")
         assert len(agents) == 0
 
@@ -85,7 +85,7 @@ class TestGetAvailableAgents:
 class TestPruneStaleAgents:
     def test_marks_stale_as_dead(self, router):
         router.update_agent_status({"agent_id": "obs1", "agent_type": "agents.observer"})
-        router.registry["obs1"].last_seen_at = datetime.utcnow() - timedelta(
+        router.registry["obs1"].last_seen_at = datetime.now(timezone.utc) - timedelta(
             seconds=HEARTBEAT_TIMEOUT_SECONDS + 10
         )
         dead = router.prune_stale_agents()
@@ -95,7 +95,7 @@ class TestPruneStaleAgents:
     def test_does_not_re_mark_dead(self, router):
         router.update_agent_status({"agent_id": "obs1", "agent_type": "agents.observer"})
         router.registry["obs1"].status = "dead"
-        router.registry["obs1"].last_seen_at = datetime.utcnow() - timedelta(seconds=200)
+        router.registry["obs1"].last_seen_at = datetime.now(timezone.utc) - timedelta(seconds=200)
         dead = router.prune_stale_agents()
         assert len(dead) == 0
 

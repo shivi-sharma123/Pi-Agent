@@ -30,7 +30,7 @@ class RateLimiter:
         """Returns True if the action is ALLOWED, False if Rate Limited."""
         
         fingerprint = self._fingerprint(action)
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         
         # Prune old history
         cutoff = now - timedelta(hours=1)
@@ -55,6 +55,6 @@ class RateLimiter:
         """Records a successfully approved action to update limits."""
         self.action_history.append({
             "fingerprint": self._fingerprint(action),
-            "timestamp": datetime.utcnow(),
+            "timestamp": datetime.now(timezone.utc),
             "action": action
         })

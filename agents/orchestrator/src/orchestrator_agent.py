@@ -11,7 +11,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict
 
 from sqlalchemy import select
@@ -131,7 +131,7 @@ class OrchestratorAgent(BaseAgent):
 
         # Create incident in DB
         incident_id = correlation_id
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         severity = payload.get("severity", "medium")
 
         timeline: list[dict] = []
@@ -212,8 +212,8 @@ class OrchestratorAgent(BaseAgent):
             incident = result.scalar_one_or_none()
             if incident:
                 incident.status = "proposing_remediation"
-                incident.state_entered_at = datetime.utcnow()
-                incident.updated_at = datetime.utcnow()
+                incident.state_entered_at = datetime.now(timezone.utc)
+                incident.updated_at = datetime.now(timezone.utc)
                 incident.diagnosis = diagnosis
                 incident.diagnosis_confidence = diagnosis.get("confidence", 0)
                 incident.root_cause_category = diagnosis.get("root_cause", {}).get("category")
@@ -286,7 +286,7 @@ class OrchestratorAgent(BaseAgent):
                 logger.error("FSM transition error: %s", e)
                 return
 
-            now = datetime.utcnow()
+            now = datetime.now(timezone.utc)
             async with get_session() as session:
                 result = await session.execute(select(Incident).where(Incident.id == incident_id))
                 incident = result.scalar_one_or_none()
@@ -384,8 +384,8 @@ class OrchestratorAgent(BaseAgent):
             incident = result.scalar_one_or_none()
             if incident:
                 incident.status = status
-                incident.state_entered_at = datetime.utcnow()
-                incident.updated_at = datetime.utcnow()
+                incident.state_entered_at = datetime.now(timezone.utc)
+                incident.updated_at = datetime.now(timezone.utc)
 
     async def _update_incident_timeline(
         self, incident_id: str, event_type: str, agent: str, summary: str
@@ -398,7 +398,7 @@ class OrchestratorAgent(BaseAgent):
                 timeline = incident.timeline or []
                 add_event(timeline, event_type, agent, summary)
                 incident.timeline = timeline
-                incident.updated_at = datetime.utcnow()
+                incident.updated_at = datetime.now(timezone.utc)
 
     async def _publish_lifecycle(
         self, event_type: str, incident_id: str, **extra: Any

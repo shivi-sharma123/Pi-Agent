@@ -87,7 +87,7 @@ def test_rate_limiter(rate_limiter):
 
     # Fast forward time to test limit per hour
     # We'll artificially inject events past the cooldown
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     past_10_min = now - timedelta(minutes=20)
     past_30_min = now - timedelta(minutes=40)
     

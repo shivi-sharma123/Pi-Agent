@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -71,7 +71,7 @@ async def incident_stats(db: AsyncSession = Depends(get_db)):
     by_severity = {row[0]: row[1] for row in severity_result.all()}
 
     # Resolved today
-    today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
     resolved_result = await db.execute(
         select(func.count(Incident.id)).where(
             Incident.resolved_at >= today_start,

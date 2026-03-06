@@ -20,7 +20,7 @@ import json
 import os
 import threading
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 
 import nats
 import redis.asyncio as aioredis
@@ -65,14 +65,14 @@ async def get_redis() -> aioredis.Redis:
 async def handle_order_created(data: dict) -> None:
     """Increment order count and accumulate revenue for the current minute."""
     r = await get_redis()
-    minute_key = datetime.utcnow().strftime("analytics:orders:%Y%m%d%H%M")
+    minute_key = datetime.now(timezone.utc).strftime("analytics:orders:%Y%m%d%H%M")
     await r.incr(minute_key)
     await r.expire(minute_key, 86400)  # keep 24h of per-minute counters
     ORDERS_TOTAL.inc()
 
     total = data.get("total", 0)
     if total:
-        rev_key = datetime.utcnow().strftime("analytics:revenue:%Y%m%d%H")
+        rev_key = datetime.now(timezone.utc).strftime("analytics:revenue:%Y%m%d%H")
         await r.incrbyfloat(rev_key, float(total))
         await r.expire(rev_key, 86400 * 7)  # keep 7 days of hourly revenue
         REVENUE_TOTAL.inc(float(total) * 100)  # store as cents in Prometheus
@@ -80,13 +80,13 @@ async def handle_order_created(data: dict) -> None:
 
 async def handle_payment_completed(data: dict) -> None:
     r = await get_redis()
-    await r.incr(f"analytics:payments:completed:{datetime.utcnow().strftime('%Y%m%d%H')}")
+    await r.incr(f"analytics:payments:completed:{datetime.now(timezone.utc).strftime('%Y%m%d%H')}")
     PAYMENTS_COMPLETED.inc()
 
 
 async def handle_payment_failed(data: dict) -> None:
     r = await get_redis()
-    await r.incr(f"analytics:payments:failed:{datetime.utcnow().strftime('%Y%m%d%H')}")
+    await r.incr(f"analytics:payments:failed:{datetime.now(timezone.utc).strftime('%Y%m%d%H')}")
     PAYMENTS_FAILED.inc()
 
 
@@ -104,7 +104,7 @@ HANDLERS = {
 async def publish_summary(nc: nats.NATS) -> None:
     """Aggregate Redis counters and publish a summary to analytics.summary."""
     r = await get_redis()
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     hour_key = now.strftime("%Y%m%d%H")
     minute_key = now.strftime("%Y%m%d%H%M")
 

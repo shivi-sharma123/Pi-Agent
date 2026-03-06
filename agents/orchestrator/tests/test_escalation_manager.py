@@ -2,7 +2,7 @@
 
 import sys
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -36,7 +36,7 @@ class TestCheckTimeouts:
     @pytest.mark.asyncio
     async def test_retry_on_timeout(self, manager, mock_nats):
         fsm = IncidentFSM("inc-1", initial_state="diagnosing")
-        fsm.state_entered_at = datetime.utcnow() - timedelta(seconds=300)
+        fsm.state_entered_at = datetime.now(timezone.utc) - timedelta(seconds=300)
         escalated = await manager.check_timeouts({"inc-1": fsm})
         assert len(escalated) == 0  # retried, not escalated
         assert fsm.retry_count == 1
@@ -45,7 +45,7 @@ class TestCheckTimeouts:
     @pytest.mark.asyncio
     async def test_escalate_after_max_retries(self, manager, mock_nats):
         fsm = IncidentFSM("inc-1", initial_state="diagnosing")
-        fsm.state_entered_at = datetime.utcnow() - timedelta(seconds=300)
+        fsm.state_entered_at = datetime.now(timezone.utc) - timedelta(seconds=300)
         fsm.retry_count = MAX_RETRIES_PER_STATE  # exhausted
         escalated = await manager.check_timeouts({"inc-1": fsm})
         assert "inc-1" in escalated
@@ -54,7 +54,7 @@ class TestCheckTimeouts:
     @pytest.mark.asyncio
     async def test_skips_terminal_states(self, manager):
         fsm = IncidentFSM("inc-1", initial_state="resolved")
-        fsm.state_entered_at = datetime.utcnow() - timedelta(hours=1)
+        fsm.state_entered_at = datetime.now(timezone.utc) - timedelta(hours=1)
         escalated = await manager.check_timeouts({"inc-1": fsm})
         assert len(escalated) == 0
 

@@ -2,7 +2,7 @@
 
 import sys
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
@@ -39,7 +39,7 @@ class TestAddEvent:
 
 class TestGeneratePostmortem:
     def test_basic_postmortem(self):
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         incident = {
             "id": "inc-1",
             "status": "resolved",

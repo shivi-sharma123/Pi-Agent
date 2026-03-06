@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 
@@ -51,7 +51,7 @@ class AgentMessage:
     """Message expiry in seconds; consumers should discard stale messages."""
 
     # --- Lifecycle ---
-    timestamp: datetime = field(default_factory=datetime.utcnow)
+    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     """UTC timestamp when the message was created."""
 
     retry_count: int = 0
@@ -98,7 +98,7 @@ class AgentMessage:
             message_type=data.get("message_type", ""),
             priority=data.get("priority", 2),
             ttl_seconds=data.get("ttl_seconds", 300),
-            timestamp=datetime.fromisoformat(ts) if isinstance(ts, str) else datetime.utcnow(),
+            timestamp=datetime.fromisoformat(ts) if isinstance(ts, str) else datetime.now(timezone.utc),
             retry_count=data.get("retry_count", 0),
             payload=data.get("payload", {}),
             context=data.get("context", {}),
@@ -106,5 +106,5 @@ class AgentMessage:
 
     def is_expired(self) -> bool:
         """Return True if the message has exceeded its TTL."""
-        age = (datetime.utcnow() - self.timestamp).total_seconds()
+        age = (datetime.now(timezone.utc) - self.timestamp).total_seconds()
         return age > self.ttl_seconds

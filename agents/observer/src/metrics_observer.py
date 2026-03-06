@@ -1,12 +1,13 @@
 import asyncio
-import json
 import logging
+import time
 from typing import Any, Dict
 
 import httpx
 
 from agents.observer.src.deduplicator import AlertDeduplicator
 from agents.observer.src.detector import AnomalyDetector
+from agents.observer.src.predictor import TrendPredictor
 from shared.agents.base import BaseAgent
 from shared.messaging.schema import AgentMessage
 
@@ -25,11 +26,12 @@ class MetricsObserver(BaseAgent):
     def __init__(self, nats_url: str, prometheus_url: str = "http://prometheus:9090"):
         super().__init__(nats_url=nats_url)
         self.prometheus_url = prometheus_url
-        self.detector = AnomalyDetector(min_data_points=3, window_size=12) # ~1 min baseline if polling every 5s
+        self.detector = AnomalyDetector(min_data_points=3, window_size=12)
         self.deduplicator = AlertDeduplicator(window_seconds=300, max_per_window=1)
-        
-        # Keep an async HTTP client pool open
         self.http_client = httpx.AsyncClient(timeout=5.0)
+
+        # Per-(metric_name, service) trend predictors — created lazily
+        self._predictors: dict[tuple[str, str], TrendPredictor] = {}
         
         # Define what we monitor and how
         self.queries = [
@@ -113,8 +115,25 @@ class MetricsObserver(BaseAgent):
                     
                     for anomaly in anomalies:
                         if not self.deduplicator.is_duplicate(anomaly):
-                            # It's a new, legitimate anomaly! Publish to NATS.
                             await self.publish_anomaly(anomaly)
+
+                    # Also feed into TrendPredictor for early-warning predictions
+                    key = (q["name"], service)
+                    if key not in self._predictors:
+                        # Pick a sensible threshold from the query's severity_map
+                        threshold = q["config"]["severity_map"].get("warning", 1.0)
+                        self._predictors[key] = TrendPredictor(
+                            metric_name=q["name"],
+                            service=service,
+                            threshold=threshold,
+                            look_ahead_seconds=1800,
+                            window_size=20,
+                        )
+                    predictor = self._predictors[key]
+                    predictor.push(value=value, timestamp=time.time())
+                    trend_alert = predictor.evaluate()
+                    if trend_alert:
+                        await self._publish_trend_alert(trend_alert)
                             
             except httpx.RequestError as e:
                 logger.error("Failed to connect to Prometheus", error=str(e))
@@ -129,11 +148,36 @@ class MetricsObserver(BaseAgent):
             message_type="anomaly_detected",
             payload=payload
         )
-        
         logger.warning(
-            f"Emitting Anomaly - Metric: {anomaly.metric}, Service: {anomaly.service}, Severity: {anomaly.severity}, Value: {anomaly.value}, Threshold Used: {anomaly.threshold_used}"
+            f"Emitting Anomaly - Metric: {anomaly.metric}, Service: {anomaly.service}, "
+            f"Severity: {anomaly.severity}, Value: {anomaly.value}"
         )
-        
-        # Publish directly to the NATS client attached to BaseAgent
-        await self.nats.publish("agents.observer.anomalies", msg.to_dict())
+        await self.nats.publish("agents.observer.anomalies", msg)
+        self._increment_processed(1)
+
+    async def _publish_trend_alert(self, alert) -> None:
+        """Publish a predictive trend-breach alert as a low-severity anomaly."""
+        payload = {
+            "metric": alert.metric_name,
+            "service": alert.service,
+            "value": alert.current_value,
+            "projected_value": alert.projected_value,
+            "threshold": alert.threshold,
+            "predicted_breach_in_seconds": alert.predicted_breach_in_seconds,
+            "slope": alert.slope,
+            "confidence": alert.confidence,
+            "alert_type": alert.alert_type,
+            "severity": "warning",
+        }
+        msg = AgentMessage(
+            source_agent=self.agent_id,
+            message_type="trend_breach_predicted",
+            payload=payload,
+        )
+        logger.warning(
+            "[PREDICTOR] Trend alert: %s/%s will breach %.2f in ~%.0fs (R²=%.2f)",
+            alert.service, alert.metric_name, alert.threshold,
+            alert.predicted_breach_in_seconds, alert.confidence,
+        )
+        await self.nats.publish("agents.observer.anomalies", msg)
         self._increment_processed(1)

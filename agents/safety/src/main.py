@@ -3,7 +3,7 @@ import sys
 import json
 import asyncio
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 
 # Adjust Python path to allow importing from shared
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..")))
@@ -130,7 +130,7 @@ class SafetyAgent(BaseAgent):
             target_agent=request.source_agent,
             message_type="safety_decision",
             priority=request.priority,
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(timezone.utc),
             payload=decision,
             context=request.context,
             ttl_seconds=300,

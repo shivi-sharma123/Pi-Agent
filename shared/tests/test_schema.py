@@ -11,7 +11,7 @@ Tests cover:
 from __future__ import annotations
 
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
@@ -69,7 +69,7 @@ class TestAgentMessage:
     def test_is_expired_returns_true_for_old_message(self):
         msg = AgentMessage(ttl_seconds=1)
         # Backdate the timestamp to make it appear 2 seconds old
-        msg.timestamp = datetime.utcnow() - timedelta(seconds=2)
+        msg.timestamp = datetime.now(timezone.utc) - timedelta(seconds=2)
         assert msg.is_expired()
 
     def test_from_dict_handles_missing_optional_fields(self):

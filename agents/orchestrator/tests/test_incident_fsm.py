@@ -2,7 +2,7 @@
 
 import sys
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
@@ -110,17 +110,17 @@ class TestTimeouts:
 
     def test_timed_out_after_threshold(self):
         fsm = IncidentFSM("inc-1")
-        fsm.state_entered_at = datetime.utcnow() - timedelta(seconds=200)
+        fsm.state_entered_at = datetime.now(timezone.utc) - timedelta(seconds=200)
         assert fsm.is_timed_out()  # detecting timeout is 120s
 
     def test_no_timeout_for_resolved(self):
         fsm = IncidentFSM("inc-1", initial_state="resolved")
-        fsm.state_entered_at = datetime.utcnow() - timedelta(hours=24)
+        fsm.state_entered_at = datetime.now(timezone.utc) - timedelta(hours=24)
         assert not fsm.is_timed_out()
 
     def test_no_timeout_for_closed(self):
         fsm = IncidentFSM("inc-1", initial_state="closed")
-        fsm.state_entered_at = datetime.utcnow() - timedelta(hours=24)
+        fsm.state_entered_at = datetime.now(timezone.utc) - timedelta(hours=24)
         assert not fsm.is_timed_out()
 
 
@@ -142,7 +142,7 @@ class TestRetries:
 
     def test_increment_retry_resets_timeout_clock(self):
         fsm = IncidentFSM("inc-1")
-        fsm.state_entered_at = datetime.utcnow() - timedelta(seconds=300)
+        fsm.state_entered_at = datetime.now(timezone.utc) - timedelta(seconds=300)
         assert fsm.is_timed_out()
         fsm.increment_retry()
         assert not fsm.is_timed_out()

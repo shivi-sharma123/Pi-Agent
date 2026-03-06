@@ -2,7 +2,7 @@
 
 import sys
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
@@ -17,8 +17,8 @@ class TestIncidentSchemas:
             id="inc-1",
             status="detecting",
             severity="high",
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow(),
+            created_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc),
         )
         assert summary.id == "inc-1"
         assert summary.auto_resolved is False
@@ -29,10 +29,10 @@ class TestIncidentSchemas:
             id="inc-1",
             status="resolved",
             severity="critical",
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow(),
-            state_entered_at=datetime.utcnow(),
-            resolved_at=datetime.utcnow(),
+            created_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc),
+            state_entered_at=datetime.now(timezone.utc),
+            resolved_at=datetime.now(timezone.utc),
             auto_resolved=True,
             resolution_summary="Container restarted",
         )
@@ -53,6 +53,6 @@ class TestIncidentSchemas:
             event_type="anomaly_detected",
             agent="observer.metrics",
             summary="High CPU detected",
-            timestamp=datetime.utcnow().isoformat(),
+            timestamp=datetime.now(timezone.utc).isoformat(),
         )
         assert event.event_type == "anomaly_detected"

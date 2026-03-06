@@ -1,7 +1,7 @@
 import asyncio
 import logging
 import urllib.parse
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import httpx
 
@@ -56,7 +56,7 @@ class LogObserver(BaseAgent):
 
     async def run_loop(self):
         # Query window: now minus polling interval, minus a few seconds for ingestion buffer
-        start_time = datetime.utcnow() - timedelta(seconds=self.poll_interval + 5)
+        start_time = datetime.now(timezone.utc) - timedelta(seconds=self.poll_interval + 5)
         start_ts = int(start_time.timestamp() * 1e9)  # Loki wants nanoseconds
         
         await self.poll_logs(start_ts)
@@ -132,5 +132,5 @@ class LogObserver(BaseAgent):
             f"Emitting Log Anomaly - Metric: {anomaly.metric}, Service: {anomaly.service}, Severity: {anomaly.severity}, Lines Matched: {anomaly.value}"
         )
         
-        await self.nats.publish("agents.observer.anomalies", msg.to_dict())
+        await self.nats.publish("agents.observer.anomalies", msg)
         self._increment_processed(1)

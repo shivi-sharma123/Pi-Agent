@@ -8,7 +8,7 @@ and provides helpers to route work to the correct agent type.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from shared.messaging.nats_client import NATSClient, build_message
@@ -24,7 +24,7 @@ class AgentInfo:
     agent_type: str
     hostname: str = ""
     status: str = "healthy"
-    last_seen_at: datetime = field(default_factory=datetime.utcnow)
+    last_seen_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     metrics: dict[str, Any] = field(default_factory=dict)
 
 
@@ -43,7 +43,7 @@ class AgentRouter:
             agent_type=heartbeat_payload.get("agent_type", ""),
             hostname=heartbeat_payload.get("hostname", ""),
             status=heartbeat_payload.get("status", "healthy"),
-            last_seen_at=datetime.utcnow(),
+            last_seen_at=datetime.now(timezone.utc),
             metrics={
                 "uptime_seconds": heartbeat_payload.get("uptime_seconds", 0),
                 "messages_processed": heartbeat_payload.get("messages_processed", 0),
@@ -55,7 +55,7 @@ class AgentRouter:
 
     def get_available_agents(self, agent_type: str) -> list[AgentInfo]:
         """Return agents of given type with heartbeat within timeout."""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         return [
             info for info in self.registry.values()
             if info.agent_type == agent_type
@@ -65,7 +65,7 @@ class AgentRouter:
 
     def prune_stale_agents(self) -> list[str]:
         """Mark agents as dead if heartbeat is stale. Returns list of dead agent IDs."""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         dead: list[str] = []
         for agent_id, info in self.registry.items():
             elapsed = (now - info.last_seen_at).total_seconds()
@@ -114,7 +114,7 @@ class AgentRouter:
 
     def get_all_agents(self) -> list[dict]:
         """Return all agents as dicts for API consumption."""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         result = []
         for info in self.registry.values():
             elapsed = (now - info.last_seen_at).total_seconds()

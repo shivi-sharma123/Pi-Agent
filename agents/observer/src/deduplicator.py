@@ -37,7 +37,7 @@ class AlertDeduplicator:
         times within `window_seconds`. False if it's new/allowed to fire.
         """
         fp = self.fingerprint(anomaly)
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
 
         # Clean old entries outside the time window
         self.seen[fp] = [

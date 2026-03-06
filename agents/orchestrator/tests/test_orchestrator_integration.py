@@ -8,7 +8,7 @@ verifying FSM transitions, timeline events, and escalation paths.
 import sys
 import os
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -102,7 +102,7 @@ class TestHappyPathLifecycle:
         assert timeline[-1]["event_type"] == "resolved"
 
     def test_postmortem_generation(self):
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         incident = {
             "id": "inc-test-1",
             "status": "resolved",
@@ -162,7 +162,7 @@ class TestTimeoutEscalation:
         mgr = EscalationManager(mock_nats)
 
         fsm = IncidentFSM("inc-timeout", initial_state="diagnosing")
-        fsm.state_entered_at = datetime.utcnow() - timedelta(seconds=300)
+        fsm.state_entered_at = datetime.now(timezone.utc) - timedelta(seconds=300)
 
         escalated = await mgr.check_timeouts({"inc-timeout": fsm})
         assert len(escalated) == 0  # first timeout = retry
@@ -175,7 +175,7 @@ class TestTimeoutEscalation:
         mgr = EscalationManager(mock_nats)
 
         fsm = IncidentFSM("inc-escalate", initial_state="diagnosing")
-        fsm.state_entered_at = datetime.utcnow() - timedelta(seconds=300)
+        fsm.state_entered_at = datetime.now(timezone.utc) - timedelta(seconds=300)
         fsm.retry_count = 2  # max retries exhausted
 
         escalated = await mgr.check_timeouts({"inc-escalate": fsm})
@@ -230,7 +230,7 @@ class TestAgentRouterIntegration:
             "agent_type": "agents.observer",
         })
         # Age the heartbeat
-        router.registry["obs-stale"].last_seen_at = datetime.utcnow() - timedelta(seconds=200)
+        router.registry["obs-stale"].last_seen_at = datetime.now(timezone.utc) - timedelta(seconds=200)
 
         dead = router.prune_stale_agents()
         assert "obs-stale" in dead
@@ -278,7 +278,7 @@ class TestConcurrentIncidents:
         assert len(escalated) == 0
 
         # Timeout inc-1 only
-        fsm1.state_entered_at = datetime.utcnow() - timedelta(seconds=300)
+        fsm1.state_entered_at = datetime.now(timezone.utc) - timedelta(seconds=300)
         escalated = await mgr.check_timeouts(active)
         assert len(escalated) == 0  # retry first
         assert fsm1.retry_count == 1

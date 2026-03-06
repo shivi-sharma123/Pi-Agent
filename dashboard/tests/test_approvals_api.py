@@ -2,7 +2,7 @@
 
 import sys
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
@@ -17,7 +17,7 @@ class TestApprovalSchemas:
             action_type="container_restart",
             risk_level="medium",
             reason="Needs human review",
-            created_at=datetime.utcnow(),
+            created_at=datetime.now(timezone.utc),
         )
         assert req.status == "pending"
         assert req.action_type == "container_restart"

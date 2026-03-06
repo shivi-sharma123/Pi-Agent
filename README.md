@@ -2,13 +2,37 @@
 
 > **Self-Healing Infrastructure Agent Swarm** — a production-grade, multi-agent system that autonomously detects, diagnoses, and remediates infrastructure incidents.
 
-[![Tests](https://img.shields.io/badge/tests-55%20passing-brightgreen)](shared/tests/)
-[![Phase](https://img.shields.io/badge/phase-1%20complete-blue)](docs/TODO.md)
+[![Tests](https://img.shields.io/badge/tests-78%20tasks%20complete-brightgreen)](docs/TODO.md)
+[![Phase](https://img.shields.io/badge/phase-all%206%20complete-blue)](docs/TODO.md)
 
 ---
 
-## Architecture Overview
+## 💡 The Core Idea
 
+A swarm of AI agents that continuously monitors infrastructure, detects anomalies, diagnoses root causes, proposes remediations, and (with appropriate safety gates) executes fixes autonomously — mimicking what a senior SRE team does during an incident.
+
+The system is designed to handle complex failure scenarios in a microservices environment, such as memory leaks, CPU spikes, network partitions, and cascading timeouts, using LLM-powered reasoning to connect disparate signals across logs, metrics, and traces.
+
+---
+
+## 🤖 The Agent Swarm
+
+The swarm coordinates six specialized agent roles, each with distinct responsibilities:
+
+| Agent | Role & Responsibility |
+|-------|-----------------------|
+| **Observer** | Detects anomalies from metrics, logs, health checks, and synthetic probes. It uses anomaly detection and pattern recognition to identify issues early. |
+| **Diagnoser** | Investigates anomalies by pulling context (logs, traces, deployments). It uses LLM reasoning to build a **causal hypothesis** and identify the root cause. |
+| **Remediator** | Maps diagnosis output to a **runbook knowledge base**. It selects, parameterizes, and executes actions like restarts, rollbacks, or scaling. |
+| **Safety** | Enforces policies, calculates blast radius, and manages **human approval gates**. It ensures dangerous actions are vetted before execution. |
+| **Orchestrator** | Manages the **Incident Lifecycle (FSM)**. It coordinates the flow from detection to resolution, handles timeouts, and builds the incident timeline. |
+| **Learner** | Stores historical outcomes and patterns. It uses RAG to recommend successful runbooks for similar recurring incidents. |
+
+---
+
+## 🏗️ Architecture
+
+### System Map
 ```
 ┌────────────────────────────────────────────────────────┐
 │                      API Gateway                        │
@@ -38,123 +62,123 @@
         └───────────────────────────────────┘
 ```
 
-## Quickstart
+### Core Tech Stack
+- **Messaging:** NATS JetStream (Event-driven agent communication)
+- **Observability:** Prometheus (Metrics), Loki (Logs), Tempo (Tracing), AlertManager
+- **Persistence:** PostgreSQL (Incident state), Redis (Caching/Sessions), Elasticsearch (Search), ChromaDB (Vector store for Learner)
+- **Dashboard:** FastAPI + React (Human-in-the-loop interface)
+- **LLM Backends:** Gemini (Primary reasoning engine)
+
+---
+
+## 🔄 Incident Lifecycle (FSM)
+
+The Orchestrator manages incidents through a formal Finite State Machine:
+
+`detecting` → `diagnosing` → `proposing_remediation` → `safety_review` → `executing` → `verifying` → `resolved` → `closed`
+
+- **Human-in-the-Loop:** Safety Agent can trigger a `pending_human_approval` state for high-risk actions.
+- **Auto-Recovery:** The FSM includes loops for remediation retries and verification failures.
+- **Escalation:** If diagnosis or remediation takes too long, the incident is escalated to human operators.
+
+---
+
+## 📡 Messaging Protocol
+
+Inter-agent communication uses a structured **AgentMessage** envelope over NATS JetStream:
+
+- **Envelope:** Includes `message_id`, `correlation_id` (incident key), `source_agent`, `payload`, and `context`.
+- **Streams:**
+  - `AGENTS`: Agent traffic and heartbeats.
+  - `INCIDENTS`: Formal lifecycle transitions.
+  - `HUMAN`: Approval requests and operator responses.
+  - `BUSINESS`: Application domain events (orders, payments).
+
+---
+
+## 🚀 Quickstart
 
 ### Prerequisites
 - Docker + Docker Compose
-- Python 3.11+ (for running tests / scripts locally)
-- Go 1.21+ (order-service local dev)
+- Python 3.11+
+- Go 1.21+
 
-### 1. Configure environment
-
+### 1. Setup Environment
 ```bash
 cp .env.example .env
-# Edit .env if needed (defaults work for local dev)
+# Configure your GEMINI_API_KEY in .env
 ```
 
-### 2. Start infrastructure
-
+### 2. Launch Infrastructure
 ```bash
-make infra-up       # PostgreSQL ×3, Redis, NATS JetStream
-make init-nats      # Create JetStream streams
+make infra-up       # PostgreSQL, Redis, NATS
+make init-nats      # Bootstrap JetStream streams
+make obs-up        # Start Observability stack (Grafana, Prometheus, etc.)
 ```
 
-### 3. Start all services
-
+### 3. Start the Swarm & Services
 ```bash
-make up             # Builds images + starts all 5 services
-make health         # Verify all /health endpoints respond
+make up             # Start microservices playground
+make agents-up      # Start the Agent Swarm
+make dashboard-up   # Start the React UI
 ```
 
-### 4. Develop / test
-
+### 4. Verify & Test
 ```bash
-make install-dev    # Install shared package in dev venv
-make test           # Run 55-test suite (no infra required)
-make lint           # Run ruff on Python code
+make health         # Check all service endpoints
+make test           # Run core test suite
 ```
 
-## Project Layout
+---
+
+## 📂 Project Layout
 
 ```
 .
-├── services/
-│   ├── api-gateway/        # Nginx reverse proxy (:8000)
-│   ├── user-service/       # FastAPI + Redis (:8001)
-│   ├── order-service/      # Go/Gin + PostgreSQL (:8002)
-│   ├── auth-service/       # Node.js/Express + JWT (:8004)
-│   └── payment-service/    # FastAPI + asyncpg (:8005)
-├── shared/                 # Shared Python package (sre-shared)
-│   ├── agents/             # BaseAgent abstract class
-│   ├── config/             # Pydantic settings
-│   ├── db/                 # SQLAlchemy models + Alembic migrations
-│   ├── logging/            # structlog JSON logger
-│   ├── messaging/          # NATS client, AgentMessage schema, subjects
-│   └── tests/              # 55 unit tests
-├── scripts/
-│   └── init_nats.py        # Bootstrap NATS JetStream streams
-├── docs/
-│   ├── TODO.md             # Phase-by-phase progress tracker
-│   ├── lld.md              # Low-level design
-│   └── idea.md             # Problem statement
-├── docker-compose.yml               # Full stack
-├── docker-compose.infrastructure.yml # Infra only
-└── Makefile
+├── agents/                 # The Swarm: observer, diagnoser, remediator, safety, orchestrator, learner
+├── services/               # Microservices playground (Python, Go, Node.js, Django)
+├── shared/                 # Common Python package (sre-shared): messaging, models, logging
+├── dashboard/              # React frontend + FastAPI backend for incident management
+├── config/                 # Observability configs (Prometheus, Loki, Grafana, Tempo)
+├── scripts/                # Utility scripts & Chaos Engineering tools
+├── docs/                   # Detailed documentation (architecture, workflows, agents)
+└── Makefile                # Central command hub
 ```
 
-## Services
+---
 
-| Service | Lang | Port | Key Features |
-|---------|------|------|--------------|
-| API Gateway | Nginx | 8000 | Reverse proxy, routing |
-| User Service | Python/FastAPI | 8001 | User CRUD, Redis sessions, Prometheus |
-| Auth Service | Node.js | 8004 | JWT (bcrypt), Redis blacklist, `/register` `/login` `/refresh` `/logout` |
-| Order Service | Go/Gin | 8002 | Order state machine, PostgreSQL, NATS publish |
-| Payment Service | Python/FastAPI | 8005 | asyncpg, refund, NATS publish |
-
-## NATS JetStream Streams
-
-| Stream | Subjects | Retention | Storage |
-|--------|----------|-----------|---------|
-| AGENTS | `agents.*` | 24 h | File |
-| INCIDENTS | `incidents.*` | 7 days | File |
-| HUMAN | `human.*` | 1 h | Memory |
-| BUSINESS | `orders.*`, `payments.*` | 3 days | File |
-
-## Database Migrations (Alembic)
-
-```bash
-# Apply initial schema to postgres-agents
-pip install alembic psycopg2-binary
-alembic -c shared/db/alembic.ini upgrade head
-
-# Create a new migration after model changes
-alembic -c shared/db/alembic.ini revision --autogenerate -m "add_field"
-```
-
-## Make Targets
+## 🛠️ Make Targets
 
 | Command | Description |
 |---------|-------------|
-| `make infra-up` | Start PostgreSQL ×3, Redis, NATS |
-| `make infra-down` | Stop infrastructure |
-| `make init-nats` | Create JetStream streams |
-| `make up` | Build + start all 5 services |
-| `make down` | Stop all services |
-| `make health` | Curl all `/health` endpoints |
-| `make test` | Run unit tests |
-| `make lint` | Run ruff linter |
-| `make clean` | Stop + remove all volumes |
+| `make infra-up` | Start core databases and message bus |
+| `make obs-up` | Start the full observability stack |
+| `make agents-up` | Launch the AI Agent Swarm |
+| `make up` | Start all microservices |
+| `make test` | Run unit and integration tests |
+| `make chaos` | Run a chaos engineering scenario (failure injection) |
+| `make clean` | Stop everything and wipe volumes |
 
-## Progress
+---
 
-See [docs/TODO.md](docs/TODO.md) for the full breakdown.
+## 📖 Documentation Index
+
+- [Architecture Overview](docs/architecture/overview.md)
+- [Messaging Protocol](docs/architecture/messaging.md)
+- [Incident Lifecycle](docs/workflows/incident_lifecycle.md)
+- [Agent Reference](docs/agents/README.md)
+- [Chaos Engineering](docs/development/chaos.md)
+- [Project TODO List](docs/TODO.md)
+
+---
+
+## 📈 Progress
 
 | Phase | Status | Tasks |
 |-------|--------|-------|
-| Phase 1 — Core Foundation & MVP Infra | ✅ Complete | 15 / 15 |
-| Phase 2 — Extended Infra & Observability | Planned | 0 / 16 |
-| Phase 3 — Observer & Diagnosis | Planned | 0 / 14 |
-| Phase 4 — Remediation & Safety | Planned | 0 / 13 |
-| Phase 5 — Orchestration & Dashboard | Planned | 0 / 11 |
-| Phase 6 — Advanced Features | Planned | 0 / 9 |
+| Phase 1 — Core Foundation | ✅ Complete | 15 / 15 |
+| Phase 2 — Observability | ✅ Complete | 16 / 16 |
+| Phase 3 — Observer & Diagnosis | ✅ Complete | 14 / 14 |
+| Phase 4 — Remediation & Safety | ✅ Complete | 13 / 13 |
+| Phase 5 — Orchestration | ✅ Complete | 11 / 11 |
+| Phase 6 — Advanced Features | ✅ Complete | 9 / 9 |

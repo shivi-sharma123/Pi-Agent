@@ -75,7 +75,7 @@ class CorrelationEngine:
         Finds an active incident within the time window that is topologically or temporally related,
         or creates a new one.
         """
-        cutoff_time = datetime.utcnow() - timedelta(minutes=self.time_window_minutes)
+        cutoff_time = datetime.now(timezone.utc) - timedelta(minutes=self.time_window_minutes)
         
         # Look for 'detecting' or 'diagnosing' incidents updated recently
         stmt = select(Incident).where(

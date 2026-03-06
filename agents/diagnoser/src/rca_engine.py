@@ -10,6 +10,7 @@ from shared.db.models import Incident
 from agents.diagnoser.src.context_collector import ContextCollector
 from agents.diagnoser.src.correlation_engine import CorrelationEngine
 from agents.diagnoser.src.hypothesis_generator import HypothesisGenerator
+from agents.diagnoser.src.debate_engine import DebateEngine, CONFIDENCE_THRESHOLD
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +28,7 @@ class RCAEngine(BaseAgent):
         self.collector = ContextCollector()
         self.correlator = CorrelationEngine()
         self.hypothesis_gen = HypothesisGenerator()
+        self.debate = DebateEngine(self.hypothesis_gen)
         
     async def setup(self):
         # Subscribe to anomalies coming from the Observer Pool
@@ -69,6 +71,18 @@ class RCAEngine(BaseAgent):
                 
                 # 3. Generate RCA Hypothesis
                 diagnosis, confidence = await self.hypothesis_gen.generate_hypothesis(incident.id, context)
+
+                # 3b. If confidence is low, run debate engine to pick the best hypothesis
+                if confidence < CONFIDENCE_THRESHOLD:
+                    logger.info(
+                        f"Confidence {confidence}%% below threshold — invoking DebateEngine for Incident {incident.id}"
+                    )
+                    diagnosis, confidence = await self.debate.resolve(
+                        incident_id=incident.id,
+                        context=context,
+                        initial_hypothesis=diagnosis,
+                        initial_confidence=confidence,
+                    )
                 
                 logger.info(
                     f"Generated RCA. Root Cause: {diagnosis.get('root_cause_service')} "
@@ -106,5 +120,5 @@ class RCAEngine(BaseAgent):
             payload=payload
         )
         
-        await self.nats.publish("agents.diagnoser.results", msg.to_dict())
+        await self.nats.publish("agents.diagnoser.results", msg)
         logger.info(f"Published diagnosis for Incident {incident_id}")
