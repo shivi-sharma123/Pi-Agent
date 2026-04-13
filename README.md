@@ -170,15 +170,3 @@ make test           # Run core test suite
 - [Chaos Engineering](docs/development/chaos.md)
 - [Project TODO List](docs/TODO.md)
 
----
-
-## 📈 Progress
-
-| Phase | Status | Tasks |
-|-------|--------|-------|
-| Phase 1 — Core Foundation | ✅ Complete | 15 / 15 |
-| Phase 2 — Observability | ✅ Complete | 16 / 16 |
-| Phase 3 — Observer & Diagnosis | ✅ Complete | 14 / 14 |
-| Phase 4 — Remediation & Safety | ✅ Complete | 13 / 13 |
-| Phase 5 — Orchestration | ✅ Complete | 11 / 11 |
-| Phase 6 — Advanced Features | ✅ Complete | 9 / 9 |
