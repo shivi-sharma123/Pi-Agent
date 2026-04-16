@@ -10,7 +10,9 @@ from agents.observer.src.detector import AnomalyResult
 from shared.agents.base import BaseAgent
 from shared.messaging.schema import AgentMessage
 
-logger = logging.getLogger(__name__)
+import structlog
+
+logger = structlog.get_logger(__name__)
 
 
 class SyntheticProber(BaseAgent):
@@ -107,5 +109,5 @@ class SyntheticProber(BaseAgent):
                 f"Emitting Synthetic Anomaly - Service: {anomaly.service}, Category: {anomaly.category}, Description: {anomaly.description}"
             )
             
-            await self.nats.publish("agents.observer.anomalies", msg.to_dict())
+            await self.nats.publish("agents.observer.anomalies", msg)
             self._increment_processed(1)

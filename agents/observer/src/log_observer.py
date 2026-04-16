@@ -9,7 +9,9 @@ from agents.observer.src.deduplicator import AlertDeduplicator
 from shared.agents.base import BaseAgent
 from shared.messaging.schema import AgentMessage
 
-logger = logging.getLogger(__name__)
+import structlog
+
+logger = structlog.get_logger(__name__)
 
 
 class LogObserver(BaseAgent):

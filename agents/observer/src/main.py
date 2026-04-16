@@ -8,7 +8,7 @@ import sys
 import structlog
 from shared.logging.logger import configure_logging
 
-configure_logging()
+configure_logging(service_name="metrics-observer")
 logger = structlog.get_logger(__name__)
 
 from agents.observer.src.health_observer import HealthObserver
@@ -32,7 +32,7 @@ def parse_args():
 
 async def main():
     args = parse_args()
-    nats_url = settings.NATS_URL
+    nats_url = settings.nats_url
     
     agent = None
     if args.type == "metrics":
@@ -50,7 +50,7 @@ async def main():
     logger.info("Starting Observer Agent", type=args.type, nats_url=nats_url)
     
     try:
-        await agent.run()
+        await agent.start()
     except KeyboardInterrupt:
         logger.info("Interrupted by user. Shutting down...")
     except Exception as e:

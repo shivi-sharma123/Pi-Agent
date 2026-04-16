@@ -5,6 +5,7 @@ This documentation covers the architecture, runtime behavior, and day-2 operatio
 ## Documentation Map
 
 - [Architecture Overview](./architecture/overview.md)
+- [Current Project Architecture](./architecture/current_project_architecture.md)
 - [Messaging Protocol](./architecture/messaging.md)
 - [Microservices Map](./architecture/microservices.md)
 - [Incident Lifecycle](./workflows/incident_lifecycle.md)

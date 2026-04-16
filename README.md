@@ -164,6 +164,7 @@ make test           # Run core test suite
 ## 📖 Documentation Index
 
 - [Architecture Overview](docs/architecture/overview.md)
+- [Current Project Architecture](docs/architecture/current_project_architecture.md)
 - [Messaging Protocol](docs/architecture/messaging.md)
 - [Incident Lifecycle](docs/workflows/incident_lifecycle.md)
 - [Agent Reference](docs/agents/README.md)

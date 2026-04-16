@@ -15,7 +15,7 @@ from scripts.chaos.injector import stress_cpu, restart_container
 
 logger = logging.getLogger(__name__)
 
-TARGET_CONTAINER = "sre-agent-order-service-1"
+TARGET_CONTAINER = "order-svc"
 SCENARIO_ID = "cpu_spike"
 DESCRIPTION = "Saturates CPU in the order-service container"
 

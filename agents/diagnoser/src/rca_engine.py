@@ -34,8 +34,8 @@ class RCAEngine(BaseAgent):
         # Subscribe to anomalies coming from the Observer Pool
         await self.nats.subscribe(
             subject="agents.observer.anomalies",
-            cb=self.handle_anomaly,
-            queue="diagnoser_pool" # Load balancing among multiple diagnoser instances
+            handler=self.handle_anomaly,
+            durable="diagnoser_pool" # Load balancing among multiple diagnoser instances
         )
         logger.info("RCAEngine setup complete and subscribed to anomalies.")
         

@@ -11,7 +11,9 @@ from agents.observer.src.predictor import TrendPredictor
 from shared.agents.base import BaseAgent
 from shared.messaging.schema import AgentMessage
 
-logger = logging.getLogger(__name__)
+import structlog
+
+logger = structlog.get_logger(__name__)
 
 
 class MetricsObserver(BaseAgent):

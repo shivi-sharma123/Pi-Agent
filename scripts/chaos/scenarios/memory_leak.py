@@ -16,7 +16,7 @@ from scripts.chaos.injector import stress_memory, kill_container, restart_contai
 logger = logging.getLogger(__name__)
 
 # The service container to target (matches docker-compose service name)
-TARGET_CONTAINER = "sre-agent-user-service-1"
+TARGET_CONTAINER = "user-svc"
 
 SCENARIO_ID = "memory_leak"
 DESCRIPTION = "Simulates a gradual memory leak in the user-service container"

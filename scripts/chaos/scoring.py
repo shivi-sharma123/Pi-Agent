@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 _DB_CONN_STR = os.environ.get(
     "POSTGRES_AGENTS_URL",
-    "host=localhost port=5432 dbname=agents_db user=sre_user password=sre_pass",
+    "host=localhost port=5432 dbname=agents user=postgres password=postgres",
 )
 
 
@@ -59,9 +59,9 @@ def fetch_incident_stats(since_epoch: float) -> dict[str, Any] | None:
         if not row:
             return None
         return {
-            "created_at": row[0],
-            "detected_at": row[1],
-            "resolved_at": row[2],
+            "created_at": float(row[0]) if row[0] is not None else None,
+            "detected_at": float(row[1]) if row[1] is not None else None,
+            "resolved_at": float(row[2]) if row[2] is not None else None,
         }
     except Exception as e:
         logger.error("Failed to fetch incident stats: %s", e)

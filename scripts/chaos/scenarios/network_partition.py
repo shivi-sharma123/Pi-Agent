@@ -15,7 +15,7 @@ from scripts.chaos.injector import add_network_latency, drop_network_packets, cl
 
 logger = logging.getLogger(__name__)
 
-TARGET_CONTAINER = "sre-agent-payment-service-1"
+TARGET_CONTAINER = "payment-svc"
 SCENARIO_ID = "network_partition"
 DESCRIPTION = "Injects network latency and packet loss into the payment-service"
 

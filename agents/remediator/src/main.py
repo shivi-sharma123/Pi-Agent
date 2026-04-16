@@ -64,16 +64,16 @@ class RemediatorAgent(BaseAgent):
         # Listen for new diagnoses from the RCA Engine
         try:
             self.sub_diag = await self.nats.subscribe(
-                SUBJECT_DIAGNOSER_RESULTS,
-                durable="remediator-diagnoser-consumer",
-                handler=self._handle_diagnosis
+                subject="agents.diagnoser.results",
+                handler=self._handle_diagnosis,
+                durable="remediator-agent-diag"
             )
             
             # Listen for safety decisions (Approve/Reject) from the Safety Agent
             self.sub_safety = await self.nats.subscribe(
-                SUBJECT_SAFETY_DECISIONS,
-                durable="remediator-safety-consumer",
-                handler=self._handle_safety_decision
+                subject="agents.safety.decisions",
+                handler=self._handle_safety_decision,
+                durable="remediator-agent-safety"
             )
         except Exception as e:
             logger.error(f"Failed to subscribe to JetStream: {e}")

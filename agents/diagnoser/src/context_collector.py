@@ -35,9 +35,9 @@ class ContextCollector:
             try:
                 anomaly_time = datetime.fromisoformat(raw_ts.replace("Z", "+00:00"))
             except ValueError:
-                anomaly_time = datetime.now(timezone.utc)
+                anomaly_time = datetime.utcnow()
         else:
-            anomaly_time = datetime.now(timezone.utc)
+            anomaly_time = datetime.utcnow()
 
         # Gather context window: 5 mins before, 1 min after
         start_time = anomaly_time - timedelta(minutes=5)

@@ -9,7 +9,9 @@ from agents.observer.src.detector import AnomalyResult
 from shared.agents.base import BaseAgent
 from shared.messaging.schema import AgentMessage
 
-logger = logging.getLogger(__name__)
+import structlog
+
+logger = structlog.get_logger(__name__)
 
 
 class HealthObserver(BaseAgent):
@@ -103,5 +105,5 @@ class HealthObserver(BaseAgent):
             f"Emitting Health Anomaly - Service: {anomaly.service}, URL: {anomaly.description}"
         )
         
-        await self.nats.publish("agents.observer.anomalies", msg.to_dict())
+        await self.nats.publish("agents.observer.anomalies", msg)
         self._increment_processed(1)

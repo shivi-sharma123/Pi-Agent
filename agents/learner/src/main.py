@@ -68,7 +68,7 @@ class LearnerAgent(BaseAgent):
         # Subscribe to query requests from the Diagnoser (request-reply).
         # Uses raw NATS subscription (not JetStream) so we can access msg.reply
         # for the request-reply pattern used by NATSClient.request().
-        await self.nats._nc.subscribe(LEARNING_QUERY, cb=self._handle_query)
+        await self.nats._nc.subscribe(LEARNING_QUERY, handler=self._handle_query)
 
         logger.info("LearnerAgent setup complete — listening on %s and %s", LEARNING_FEEDBACK, LEARNING_QUERY)
 

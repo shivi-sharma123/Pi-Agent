@@ -15,7 +15,7 @@ import docker
 
 logger = logging.getLogger(__name__)
 
-TARGET_CONTAINER = "sre-agent-postgres-agents-1"
+TARGET_CONTAINER = "postgres-agents"
 SCENARIO_ID = "database_overload"
 DESCRIPTION = "Runs expensive SQL queries to saturate the PostgreSQL connection pool"
 
@@ -39,9 +39,9 @@ def run(duration_seconds: int = 60) -> dict:
     # Spawn workers in background
     for _ in range(_STRESS_WORKERS):
         cmd = (
-            f"psql -U sre_user -d agents_db -c \"{_HEAVY_QUERY}\""
+            f"psql -U postgres -d agents -c \"{_HEAVY_QUERY}\""
         )
-        c.exec_run(cmd=cmd, detach=True, environment={"PGPASSWORD": "sre_pass"})
+        c.exec_run(cmd=cmd, detach=True, environment={"PGPASSWORD": "postgres"})
 
     return {
         "scenario_id": SCENARIO_ID,
