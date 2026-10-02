@@ -1,4 +1,4 @@
-# Tempo configuration for SRE Agent Swarm
+# Tempo configuration for Pi Agent Swarm
 # OTLP receiver on 4317 (gRPC) and 4318 (HTTP), filesystem storage.
 
 stream_over_http_enabled: true
@@ -41,7 +41,7 @@ metrics_generator:
   registry:
     external_labels:
       source: tempo
-      cluster: sre-local
+      cluster: Pi-local
   storage:
     path: /var/tempo/generator/wal
   processors:

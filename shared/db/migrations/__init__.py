@@ -1,3 +1,3 @@
 """
-Alembic migrations package for the SRE Agent agents database.
+Alembic migrations package for the Pi Agent agents database.
 """

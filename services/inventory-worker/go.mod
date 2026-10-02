@@ -1,4 +1,4 @@
-module github.com/anubhav100rao/sre-agent/inventory-worker
+
 
 go 1.22
 

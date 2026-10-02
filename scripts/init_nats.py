@@ -2,7 +2,7 @@
 """
 NATS JetStream Initialisation Script.
 
-Creates all streams and durable consumers required by the SRE Agent Swarm.
+Creates all streams and durable consumers required by the Pi Agent Swarm.
 Run this once after `docker compose up -d` to bootstrap the message bus.
 
 Usage:

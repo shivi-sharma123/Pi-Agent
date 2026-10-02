@@ -1,4 +1,4 @@
-# SRE Agent Swarm — Makefile
+# Pi Agent Swarm — Makefile
 # Usage: make <target>
 
 .PHONY: help up down logs ps test lint clean infra-up infra-down init-nats
@@ -189,7 +189,7 @@ clean:
 
 help:
 	@echo ""
-	@echo "SRE Agent Swarm — Makefile Targets"
+	@echo "Pi Agent Swarm — Makefile Targets"
 	@echo "======================================"
 	@echo ""
 	@echo "Infrastructure"

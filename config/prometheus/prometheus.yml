@@ -1,4 +1,4 @@
-# Prometheus configuration for SRE Agent Swarm — Phase 2
+# Prometheus configuration for Pi Agent Swarm — Phase 2
 # Scrapes all 10 services + 3 workers every 15 seconds.
 
 global:
@@ -7,7 +7,7 @@ global:
   evaluation_interval: 15s
   external_labels:
     environment: local
-    project: sre-agent-swarm
+    project: Pi-agent-swarm
 
 # ── Alert rules ────────────────────────────────────────────────────────────
 rule_files:

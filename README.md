@@ -11,7 +11,7 @@ NOTE: Source Code to be added soon
 
 ## 💡 The Core Idea
 
-A Pi (π) of AI agents that continuously monitors infrastructure, detects anomalies, diagnoses root causes, proposes remediations, and (with appropriate safety gates) executes fixes autonomously — mimicking what a senior SRE team does during an incident.
+A Pi (π) of AI agents that continuously monitors infrastructure, detects anomalies, diagnoses root causes, proposes remediations, and (with appropriate safety gates) executes fixes autonomously — mimicking what a senior Pi team does during an incident.
 
 The system is designed to handle complex failure scenarios in a microservices environment, such as memory leaks, CPU spikes, network partitions, and cascading timeouts, using LLM-powered reasoning to connect disparate signals across logs, metrics, and traces.
 
@@ -146,7 +146,7 @@ make test           # Run core test suite
 .
 ├── agents/                 # The Pi (π): observer, diagnoser, remediator, safety, orchestrator, learner
 ├── services/               # Microservices playground (Python, Go, Node.js, Django)
-├── shared/                 # Common Python package (sre-shared): messaging, models, logging
+├── shared/                 # Common Python package (Pi-shared): messaging, models, logging
 ├── dashboard/              # React frontend + FastAPI backend for incident management
 ├── config/                 # Observability configs (Prometheus, Loki, Grafana, Tempo)
 ├── scripts/                # Utility scripts & Chaos Engineering tools

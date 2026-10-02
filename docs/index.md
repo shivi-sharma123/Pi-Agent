@@ -1,6 +1,6 @@
-# SRE Agent Swarm Documentation
+# Pi Agent Swarm Documentation
 
-This documentation covers the architecture, runtime behavior, and day-2 operations of the SRE Agent Swarm.
+This documentation covers the architecture, runtime behavior, and day-2 operations of the Pi Agent Swarm.
 
 ## Documentation Map
 

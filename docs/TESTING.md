@@ -1,4 +1,4 @@
-# SRE Agent Swarm — Testing Guide
+# Pi Agent Swarm — Testing Guide
 
 This document covers every testing workflow: unit tests, integration tests, Docker smoke tests, end-to-end incident lifecycle verification, chaos engineering, and manual API testing.
 

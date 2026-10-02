@@ -3,9 +3,9 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "sre-shared"
+name = "Pi-shared"
 version = "0.1.0"
-description = "Shared library for SRE Agent Swarm: messaging, config, logging, DB models"
+description = "Shared library for Pi Agent Swarm: messaging, config, logging, DB models"
 requires-python = ">=3.11"
 dependencies = [
     "pydantic>=2.6",

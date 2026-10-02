@@ -1,4 +1,4 @@
-# Prometheus alerting rules for SRE Agent Swarm
+# Prometheus alerting rules for Pi Agent Swarm
 # These rules are evaluated every 15s (global.evaluation_interval)
 # and fire to AlertManager when condition holds for the specified `for` duration.
 

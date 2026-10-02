@@ -4,7 +4,7 @@ Chaos Runner
 =============
 Orchestrates chaos scenarios end-to-end:
   1. Runs a scenario (injects the failure)
-  2. Waits for the SRE agent swarm to detect and remediate
+  2. Waits for the Pi agent swarm to detect and remediate
   3. Records MTTD (time-to-detect) and MTTR (time-to-remediate) from the DB
   4. Cleans up after each scenario
   5. Generates a Markdown performance report
@@ -117,7 +117,7 @@ def generate_report(results: list[dict], path: str | None = None) -> str:
     """Render results as a Markdown report and optionally write to disk."""
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     lines = [
-        f"# SRE Agent Chaos Engineering Report",
+        f"# Pi Agent Chaos Engineering Report",
         f"",
         f"**Generated:** {now}",
         f"",
@@ -158,7 +158,7 @@ def generate_report(results: list[dict], path: str | None = None) -> str:
 def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 
-    parser = argparse.ArgumentParser(description="SRE Agent Chaos Runner")
+    parser = argparse.ArgumentParser(description="Pi Agent Chaos Runner")
     parser.add_argument("--scenario", choices=ALL_SCENARIOS, help="Run only this scenario")
     parser.add_argument("--dry-run", action="store_true", help="Print plan without injecting")
     parser.add_argument("--cooldown", type=int, default=COOLDOWN_SECONDS,

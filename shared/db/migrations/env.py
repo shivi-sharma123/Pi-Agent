@@ -1,5 +1,5 @@
 """
-Alembic environment configuration for the SRE Agent Swarm agent database.
+Alembic environment configuration for the Pi Agent Swarm agent database.
 
 Manages migrations for the `postgres-agents` PostgreSQL database
 (Incident, Anomaly, AgentHeartbeat tables).

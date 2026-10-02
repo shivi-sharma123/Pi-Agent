@@ -1,4 +1,4 @@
-module github.com/sre-agent/order-service
+
 
 go 1.22
 

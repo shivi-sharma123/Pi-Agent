@@ -1,4 +1,4 @@
-# Promtail configuration for SRE Agent Swarm
+# Promtail configuration for Pi Agent Swarm
 # Ships Docker container logs to Loki with service-level labels.
 
 server:
@@ -20,7 +20,7 @@ scrape_configs:
         filters:
           # Only scrape containers on our network
           - name: network
-            values: ["sre-net"]
+            values: ["Pi-net"]
     relabel_configs:
       # Use container name as the service label
       - source_labels: ["__meta_docker_container_name"]

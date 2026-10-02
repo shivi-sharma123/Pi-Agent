@@ -1,4 +1,4 @@
-name: SRE Agent Swarm CI
+name: Pi Agent Swarm CI
 
 on:
   push:

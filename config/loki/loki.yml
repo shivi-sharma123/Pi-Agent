@@ -1,4 +1,4 @@
-# Loki configuration for SRE Agent Swarm
+# Loki configuration for Pi Agent Swarm
 # Filesystem storage, 7-day retention.
 
 auth_enabled: false

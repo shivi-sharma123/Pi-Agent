@@ -1,5 +1,5 @@
 """
-BaseAgent — abstract base class for all SRE agents.
+BaseAgent — abstract base class for all Pi agents.
 
 All agents (Observer, Diagnoser, Remediator, Safety, Orchestrator, Learning)
 inherit from BaseAgent to get:
@@ -39,7 +39,7 @@ logger = get_logger(__name__)
 
 class BaseAgent(abc.ABC):
     """
-    Abstract base class for all SRE swarm agents.
+    Abstract base class for all Pi swarm agents.
 
     Subclasses must implement:
       - ``agent_type``: class-level string identifier (e.g. 'observer.metrics')

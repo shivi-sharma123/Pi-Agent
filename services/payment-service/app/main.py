@@ -151,7 +151,7 @@ async def _bootstrap_schema(pool: asyncpg.Pool) -> None:
 
 app = FastAPI(
     title="Payment Service",
-    description="Payment processing for the SRE Agent Swarm demo",
+    description="Payment processing for the Pi Agent Swarm demo",
     version="0.1.0",
     lifespan=lifespan,
 )

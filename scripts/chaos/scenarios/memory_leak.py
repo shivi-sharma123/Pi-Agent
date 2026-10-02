@@ -3,7 +3,7 @@
 Memory Leak Chaos Scenario
 ===========================
 Gradually increases memory usage inside the user-service container to simulate
-a memory leak, then waits for the SRE agent swarm to detect and remediate it.
+a memory leak, then waits for the Pi agent swarm to detect and remediate it.
 """
 
 from __future__ import annotations

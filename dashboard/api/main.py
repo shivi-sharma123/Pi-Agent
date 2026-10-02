@@ -1,5 +1,5 @@
 """
-Dashboard API — FastAPI application for the SRE Agent Swarm Dashboard.
+Dashboard API — FastAPI application for the Pi Agent Swarm Dashboard.
 
 Serves REST endpoints for incidents, agents, and approvals.
 Also hosts the WebSocket endpoint for real-time updates.
@@ -41,7 +41,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="SRE Agent Swarm Dashboard",
+    title="Pi Agent Swarm Dashboard",
     version="0.1.0",
     lifespan=lifespan,
 )

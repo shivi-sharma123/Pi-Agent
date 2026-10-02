@@ -1,6 +1,6 @@
 # System Architecture Overview
 
-The SRE Agent Swarm is an event-driven control plane for automated incident detection, diagnosis, and remediation across a microservices environment.
+The Pi Agent Swarm is an event-driven control plane for automated incident detection, diagnosis, and remediation across a microservices environment.
 
 ## Design Principles
 

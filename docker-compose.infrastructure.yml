@@ -1,7 +1,7 @@
 version: "3.9"
 
 # ===========================================================================
-# Core Infrastructure for the SRE Agent Swarm
+# Core Infrastructure for the Pi Agent Swarm
 #
 # Includes: PostgreSQL (x4), Redis, NATS JetStream, Elasticsearch
 # Start with: docker compose -f docker-compose.infrastructure.yml up -d
@@ -34,7 +34,7 @@ services:
           cpus: "1.0"
           memory: 512M
     networks:
-      - sre-net
+      - pi-net
 
   # -------------------------------------------------------------------------
   # PostgreSQL — Orders Store
@@ -62,7 +62,7 @@ services:
           cpus: "1.0"
           memory: 512M
     networks:
-      - sre-net
+      - pi-net
 
   # -------------------------------------------------------------------------
   # PostgreSQL — Payments Store
@@ -90,7 +90,7 @@ services:
           cpus: "0.5"
           memory: 256M
     networks:
-      - sre-net
+      - pi-net
 
   # -------------------------------------------------------------------------
   # Redis — Sessions & Token Cache
@@ -119,7 +119,7 @@ services:
           cpus: "0.5"
           memory: 256M
     networks:
-      - sre-net
+      - pi-net
 
   # -------------------------------------------------------------------------
   # NATS JetStream — Agent Message Bus
@@ -146,7 +146,7 @@ services:
           cpus: "0.5"
           memory: 256M
     networks:
-      - sre-net
+      - pi-net
 
   # -------------------------------------------------------------------------
   # PostgreSQL — Inventory Store
@@ -174,7 +174,7 @@ services:
           cpus: "0.5"
           memory: 256M
     networks:
-      - sre-net
+      - pi-net
 
   # -------------------------------------------------------------------------
   # Elasticsearch — Product Catalog + Search Index
@@ -188,13 +188,17 @@ services:
       - discovery.type=single-node
       - xpack.security.enabled=false
       - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
-      - cluster.name=sre-es
+      - cluster.name=pi-es
     volumes:
       - esdata:/usr/share/elasticsearch/data
     ports:
       - "9200:9200"
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:9200/_cluster/health | grep -v red"]
+      test:
+        [
+          "CMD-SHELL",
+          "curl -sf http://localhost:9200/_cluster/health | grep -v red",
+        ]
       interval: 15s
       timeout: 10s
       retries: 10
@@ -204,7 +208,7 @@ services:
           cpus: "2.0"
           memory: 1G
     networks:
-      - sre-net
+      - pi-net
 
 # ===========================================================================
 # Volumes
@@ -222,6 +226,6 @@ volumes:
 # Networks
 # ===========================================================================
 networks:
-  sre-net:
-    name: sre-net
+  pi-net:
+    name: pi-net
     driver: bridge

@@ -1,4 +1,4 @@
-# SRE Agent Swarm — Progress Tracker
+# Pi Agent Swarm — Progress Tracker
 
 > **Project:** Self-Healing Infrastructure Agent Swarm
 > **Started:** March 2026

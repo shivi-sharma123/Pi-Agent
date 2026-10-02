@@ -1,7 +1,7 @@
 {
     "name": "auth-service",
     "version": "0.1.0",
-    "description": "JWT authentication service for the SRE Agent Swarm demo",
+    "description": "JWT authentication service for the Pi Agent Swarm demo",
     "main": "src/index.js",
     "scripts": {
         "start": "node src/index.js",

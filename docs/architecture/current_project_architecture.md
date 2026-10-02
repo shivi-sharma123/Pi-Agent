@@ -4,7 +4,7 @@ This document describes the architecture that exists in the repository today. It
 
 ## 1. System Purpose
 
-The project is a self-healing SRE agent swarm around a local e-commerce-style microservices environment. The application services intentionally provide a realistic failure surface: HTTP APIs, background workers, several databases, Redis, Elasticsearch, NATS JetStream, and an observability stack.
+The project is a self-healing Pi agent swarm around a local e-commerce-style microservices environment. The application services intentionally provide a realistic failure surface: HTTP APIs, background workers, several databases, Redis, Elasticsearch, NATS JetStream, and an observability stack.
 
 The agent control plane watches that environment, detects abnormal behavior, diagnoses likely root causes, proposes remediations, gates risky actions through policy and human approval, executes approved actions, verifies recovery, and records incident history for future learning.
 

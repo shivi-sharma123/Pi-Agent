@@ -99,7 +99,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="User Service",
-    description="User profile management for the SRE Agent Swarm demo",
+    description="User profile management for the Pi Agent Swarm demo",
     version="0.1.0",
     lifespan=lifespan,
 )

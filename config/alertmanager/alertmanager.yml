@@ -1,4 +1,4 @@
-# AlertManager configuration for SRE Agent Swarm
+# AlertManager configuration for Pi Agent Swarm
 # Fires alerts to a webhook receiver (local stub).
 # Phase 3 will wire this to the Safety Agent's human-approval gateway.
 
